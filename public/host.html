@@ -6,6 +6,7 @@
     .team-controls { margin: 20px 0; }
     .team-list { margin: 10px 0; }
     .answers { margin-top: 20px; border: 1px solid #ccc; padding: 10px; }
+    .answer-item { margin: 5px 0; padding: 5px; background: #f5f5f5; }
   </style>
 </head>
 <body>
@@ -38,7 +39,9 @@
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io();
+    socket.emit('join-host');
     let teams = [];
+    let currentTeam = 'None';
 
     function addTeam() {
       const teamName = document.getElementById('teamInput').value;
@@ -101,20 +104,34 @@
     socket.on('teams-set', (teamList) => {
       teams = teamList;
       updateTeamsList();
-      document.getElementById('currentTeam').textContent = teams[0] || 'None';
+      currentTeam = teams[0] || 'None';
+      document.getElementById('currentTeam').textContent = currentTeam;
     });
 
     socket.on('team-changed', (team) => {
+      currentTeam = team;
       document.getElementById('currentTeam').textContent = team;
     });
 
     socket.on('answers-updated', (answers) => {
       const answersList = document.getElementById('answersList');
-      answersList.innerHTML = Object.entries(answers).map(([team, teamAnswers]) => 
-        `<div><strong>${team}</strong>: ` + 
-        teamAnswers.map(a => `${a.player}: ${a.answer}`).join(', ') + 
-        `</div>`
-      ).join('');
+      answersList.innerHTML = Object.entries(answers).map(([team, teamAnswers]) => {
+        const answersHtml = teamAnswers.map(a => {
+          // Handle both object and string answers
+          const answerText = typeof a.answer === 'object' ? 
+            (a.answer.answer || JSON.stringify(a.answer)) : 
+            a.answer;
+          return `<li>${a.player || 'Unknown'}: ${answerText}</li>`;
+        }).join('');
+        
+        return `
+          <div class="answer-item">
+            <strong>${team}</strong>:
+            <ul>${answersHtml}</ul>
+          </div>
+        `;
+      }).join('');
+      console.log('Updated answers display:', answers);
     });
   </script>
 </body>

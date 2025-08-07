@@ -48,17 +48,21 @@ io.on('connection', (socket) => {
     });
   });
 
+  socket.on('join-host', () => {
+    socket.join('host');
+  });
+
   socket.on('next-team', () => {
     if (currentTeamIndex < teams.length - 1) {
       currentTeamIndex++;
-      socket.emit('team-changed', teams[currentTeamIndex]);
+      io.to('host').emit('team-changed', teams[currentTeamIndex]);
     }
   });
 
   socket.on('previous-team', () => {
     if (currentTeamIndex > 0) {
       currentTeamIndex--;
-      socket.emit('team-changed', teams[currentTeamIndex]);
+      io.to('host').emit('team-changed', teams[currentTeamIndex]);
     }
   });
 
@@ -67,18 +71,22 @@ io.on('connection', (socket) => {
   });
 
   socket.on('submit-answer', (answer) => {
-    const playerName = players[socket.id].name;
-    console.log(playerName, 'answered:', answer);
+    const playerName = players[socket.id]?.name || 'Unknown';
+    console.log('Answer received:', {
+      player: playerName,
+      team: teams[currentTeamIndex],
+      answer: answer.answer || answer // Handle both object and direct answer
+    });
     
     if (!answersByTeam[teams[currentTeamIndex]]) {
       answersByTeam[teams[currentTeamIndex]] = [];
     }
     answersByTeam[teams[currentTeamIndex]].push({
       player: playerName,
-      answer: answer
+      answer: answer.answer || answer // Handle both formats
     });
     
-    socket.emit('answers-updated', answersByTeam);
+    io.to('host').emit('answers-updated', answersByTeam);
   });
 
   socket.on('disconnect', () => {
