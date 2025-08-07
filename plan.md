@@ -50,6 +50,20 @@ This project is a simple real-time judging application inspired by Kahoot. It al
 4. Judges submit answers via `submit-answer`.
 5. Server logs answers and can be extended to update scores.
 
+## Recent Updates
+- Added team management functionality:
+  - Host can add/remove teams before starting
+  - Host controls which team is currently being judged
+  - Answers are tracked by team
+- Fixed question display issues:
+  - Questions now properly show for judges
+  - Added data validation for question array
+  - Improved error handling
+- Added comprehensive logging:
+  - Server logs questions being sent
+  - Client logs received questions
+  - Debug logs for data processing
+
 ## Potential Enhancements
 - Implement score calculation and update on the server.
 - Add real-time score display for judges and host.

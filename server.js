@@ -12,32 +12,77 @@ app.use(express.static('public'));
 
 let judgePIN = '1234';
 let players = {};
+let teams = [];
+let currentTeamIndex = 0;
+let answersByTeam = {};
 
 io.on('connection', (socket) => {
   console.log('New connection:', socket.id);
 
   socket.on('join-judging', (pin, name) => {
-if (pin === judgePIN) {
+    if (pin === judgePIN) {
       players[socket.id] = { name, score: 0 };
-socket.join('judge');
+      socket.join('judge');
       socket.emit('joined-success', name);
-io.to('judge').emit('participant-list', Object.values(players));
+      io.to('judge').emit('participant-list', Object.values(players));
     } else {
       socket.emit('error-message', 'Invalid Game PIN');
     }
   });
 
+  socket.on('set-teams', (teamNames) => {
+    teams = teamNames;
+    currentTeamIndex = 0;
+    answersByTeam = {};
+    socket.emit('teams-set', teams);
+  });
+
   socket.on('start-question', (questions) => {
-    io.to('judge').emit('question', questions);
+    console.log('Sending questions to judges:', {
+      questions,
+      currentTeam: teams[currentTeamIndex]
+    });
+    io.to('judge').emit('question', {
+      questions,
+      currentTeam: teams[currentTeamIndex]
+    });
+  });
+
+  socket.on('next-team', () => {
+    if (currentTeamIndex < teams.length - 1) {
+      currentTeamIndex++;
+      socket.emit('team-changed', teams[currentTeamIndex]);
+    }
+  });
+
+  socket.on('previous-team', () => {
+    if (currentTeamIndex > 0) {
+      currentTeamIndex--;
+      socket.emit('team-changed', teams[currentTeamIndex]);
+    }
+  });
+
+  socket.on('end-session', () => {
+    io.to('judge').emit('session-ended');
   });
 
   socket.on('submit-answer', (answer) => {
-    console.log(players[socket.id].name, 'answered:', answer);
-// Optionally update judgment score here
+    const playerName = players[socket.id].name;
+    console.log(playerName, 'answered:', answer);
+    
+    if (!answersByTeam[teams[currentTeamIndex]]) {
+      answersByTeam[teams[currentTeamIndex]] = [];
+    }
+    answersByTeam[teams[currentTeamIndex]].push({
+      player: playerName,
+      answer: answer
+    });
+    
+    socket.emit('answers-updated', answersByTeam);
   });
 
   socket.on('disconnect', () => {
-delete players[socket.id];
+    delete players[socket.id];
     io.to('judge').emit('participant-list', Object.values(players));
   });
 });

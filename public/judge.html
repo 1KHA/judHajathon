@@ -2,9 +2,18 @@
 <html>
 <head>
   <title>Join Judging</title>
+  <style>
+    .current-team {
+      font-size: 1.2em;
+      margin: 10px 0;
+      padding: 5px;
+      background: #f0f0f0;
+    }
+  </style>
 </head>
 <body>
   <h1>Join Judging</h1>
+  <div id="currentTeam" class="current-team"></div>
   <input type="text" id="name" placeholder="Your name">
   <button onclick="joinGame()">Join</button>
 
@@ -28,12 +37,17 @@
     });
 
     socket.on('question', (data) => {
+      console.log('Received question data:', data);
+      document.getElementById('currentTeam').textContent = 
+        `Currently judging: ${data.currentTeam || 'No team selected'}`;
+      
+      const questions = Array.isArray(data.questions) ? data.questions : [data.questions];
       const container = document.getElementById('questions-container');
       container.innerHTML = '';
+      console.log('Processing questions:', questions);
 
-      // Check if data is an array (multiple questions) or single question
-      if (Array.isArray(data)) {
-        data.forEach((question, index) => {
+      // Process the questions array
+      questions.forEach((question, index) => {
           const questionDiv = document.createElement('div');
           questionDiv.style.marginBottom = '20px';
 
@@ -52,24 +66,14 @@
 
           container.appendChild(questionDiv);
         });
-      } else {
-        // Single question fallback
-        const questionTitle = document.createElement('h2');
-        questionTitle.innerText = data.text;
-        container.appendChild(questionTitle);
-
-        const choicesDiv = document.createElement('div');
-        data.choices.forEach(choice => {
-          const btn = document.createElement('button');
-          btn.innerText = choice;
-          btn.onclick = () => socket.emit('submit-answer', choice);
-          choicesDiv.appendChild(btn);
-        });
-        container.appendChild(choicesDiv);
-      }
     });
 
     socket.on('error-message', msg => alert(`Judging Error: ${msg}`));
+    socket.on('session-ended', () => {
+      alert('The judging session has ended');
+      document.getElementById('question-box').style.display = 'none';
+      document.getElementById('currentTeam').textContent = 'Session ended';
+    });
   </script>
 </body>
 </html>

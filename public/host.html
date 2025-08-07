@@ -2,14 +2,81 @@
 <html>
 <head>
   <title>Host Judging</title>
+  <style>
+    .team-controls { margin: 20px 0; }
+    .team-list { margin: 10px 0; }
+    .answers { margin-top: 20px; border: 1px solid #ccc; padding: 10px; }
+  </style>
 </head>
 <body>
   <h1>Host Judging</h1>
+  
+  <div>
+    <h2>Teams</h2>
+    <div>
+      <input type="text" id="teamInput" placeholder="Team name">
+      <button onclick="addTeam()">Add Team</button>
+    </div>
+    <div id="teamsList" class="team-list"></div>
+    <button onclick="setTeams()">Set Teams</button>
+  </div>
+
+  <div class="team-controls">
+    <h3>Current Team: <span id="currentTeam">None</span></h3>
+    <button onclick="previousTeam()">Previous Team</button>
+    <button onclick="nextTeam()">Next Team</button>
+    <button onclick="endSession()">End Session</button>
+  </div>
+
   <button onclick="sendQuestion()">Send Questions</button>
+
+  <div id="answers" class="answers">
+    <h3>Answers</h3>
+    <div id="answersList"></div>
+  </div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io();
+    let teams = [];
+
+    function addTeam() {
+      const teamName = document.getElementById('teamInput').value;
+      if (teamName) {
+        teams.push(teamName);
+        document.getElementById('teamInput').value = '';
+        updateTeamsList();
+      }
+    }
+
+    function updateTeamsList() {
+      const list = document.getElementById('teamsList');
+      list.innerHTML = teams.map(team => 
+        `<div>${team} <button onclick="removeTeam('${team}')">Remove</button></div>`
+      ).join('');
+    }
+
+    function removeTeam(team) {
+      teams = teams.filter(t => t !== team);
+      updateTeamsList();
+    }
+
+    function setTeams() {
+      socket.emit('set-teams', teams);
+    }
+
+    function previousTeam() {
+      socket.emit('previous-team');
+    }
+
+    function nextTeam() {
+      socket.emit('next-team');
+    }
+
+    function endSession() {
+      socket.emit('end-session');
+    }
+
     function sendQuestion() {
       const questions = [
         {
@@ -30,6 +97,25 @@
       ];
       socket.emit('start-question', questions);
     }
+
+    socket.on('teams-set', (teamList) => {
+      teams = teamList;
+      updateTeamsList();
+      document.getElementById('currentTeam').textContent = teams[0] || 'None';
+    });
+
+    socket.on('team-changed', (team) => {
+      document.getElementById('currentTeam').textContent = team;
+    });
+
+    socket.on('answers-updated', (answers) => {
+      const answersList = document.getElementById('answersList');
+      answersList.innerHTML = Object.entries(answers).map(([team, teamAnswers]) => 
+        `<div><strong>${team}</strong>: ` + 
+        teamAnswers.map(a => `${a.player}: ${a.answer}`).join(', ') + 
+        `</div>`
+      ).join('');
+    });
   </script>
 </body>
 </html>
