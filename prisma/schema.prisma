@@ -10,12 +10,22 @@ datasource db {
   url      = "file:./dev.db"
 }
 
+model Session {
+  id        Int      @id @default(autoincrement())
+  name      String
+  createdAt DateTime @default(now())
+  teams     Team[]
+  questions Question[]
+  answers   Answer[]
+}
+
 model Team {
   id        Int      @id @default(autoincrement())
-  name      String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  name      String
+  session   Session  @relation(fields: [sessionId], references: [id])
+  sessionId Int
   answers   Answer[]
+  createdAt DateTime @default(now())
 }
 
 model Question {
@@ -23,15 +33,17 @@ model Question {
   text      String
   choices   Json
   correct   String
-  createdAt DateTime @default(now())
+  session   Session  @relation(fields: [sessionId], references: [id])
+  sessionId Int
   answers   Answer[]
+  createdAt DateTime @default(now())
 }
 
 model Judge {
   id        Int      @id @default(autoincrement())
-  name      String
-  createdAt DateTime @default(now())
+  name      String   @unique
   answers   Answer[]
+  createdAt DateTime @default(now())
 }
 
 model Answer {
@@ -43,5 +55,7 @@ model Answer {
   teamId     Int
   judge      Judge    @relation(fields: [judgeId], references: [id])
   judgeId    Int
+  session    Session  @relation(fields: [sessionId], references: [id])
+  sessionId  Int
   createdAt  DateTime @default(now())
 }

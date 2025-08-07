@@ -21,24 +21,44 @@ let answersByTeam = {};
 io.on('connection', (socket) => {
   console.log('New connection:', socket.id);
 
-  socket.on('join-judging', (pin, name) => {
+  socket.on('join-judging', async (pin, name) => {
+    if (!name || name.trim() === '') {
+      socket.emit('error-message', 'Name is required');
+      return;
+    }
+
     if (pin === judgePIN) {
-      players[socket.id] = { name, score: 0 };
-      socket.join('judge');
-      socket.emit('joined-success', name);
-      io.to('judge').emit('participant-list', Object.values(players));
+      try {
+        // Create or find judge in database
+        const judge = await prisma.judge.upsert({
+          where: { name },
+          create: { name },
+          update: {}
+        });
+        
+        players[socket.id] = { name, score: 0 };
+        socket.join('judge');
+        socket.emit('joined-success', name);
+        io.to('judge').emit('participant-list', Object.values(players));
+        console.log(`Judge created: ${name} (ID: ${judge.id})`);
+      } catch (error) {
+        console.error('Error creating judge:', error);
+        socket.emit('error-message', 'Failed to join session');
+      }
     } else {
       socket.emit('error-message', 'Invalid Game PIN');
     }
   });
 
   socket.on('set-teams', async (teamNames) => {
-    // Clear existing teams
-    await prisma.team.deleteMany({});
-    
-    // Create new teams
-    await prisma.team.createMany({
-      data: teamNames.map(name => ({ name }))
+    // Create new session
+    currentSession = await prisma.session.create({
+      data: {
+        name: `Session ${new Date().toISOString()}`,
+        teams: {
+          create: teamNames.map(name => ({ name }))
+        }
+      }
     });
     
     // Update in-memory state
@@ -48,15 +68,37 @@ io.on('connection', (socket) => {
     socket.emit('teams-set', teams);
   });
 
-  socket.on('start-question', (questions) => {
-    console.log('Sending questions to judges:', {
-      questions,
-      currentTeam: teams[currentTeamIndex]
-    });
-    io.to('judge').emit('question', {
-      questions,
-      currentTeam: teams[currentTeamIndex]
-    });
+  socket.on('start-question', async (questions) => {
+    if (!currentSession) {
+      console.error('No active session');
+      return;
+    }
+    
+    try {
+      const createdQuestions = await Promise.all(
+        questions.map((q, index) => 
+          prisma.question.create({
+            data: {
+              text: q.text,
+              choices: q.choices,
+              correct: q.correct,
+              session: {
+                connect: { id: currentSession.id }
+              }
+            }
+          })
+        )
+      );
+      
+      console.log('Questions saved:', createdQuestions);
+      
+      io.to('judge').emit('question', {
+        questions,
+        currentTeam: teams[currentTeamIndex]
+      });
+    } catch (error) {
+      console.error('Error saving questions:', error);
+    }
   });
 
   socket.on('join-host', () => {
@@ -82,17 +124,28 @@ io.on('connection', (socket) => {
   });
 
   socket.on('submit-answer', async (answerData) => {
-    const playerName = players[socket.id]?.name || 'Unknown';
+    const playerName = players[socket.id]?.name;
+    if (!playerName) {
+      console.error('No player name found for socket:', socket.id);
+      return;
+    }
+    
     const answerText = answerData.answer || answerData;
     const questionIndex = answerData.questionIndex;
     const currentTeam = teams[currentTeamIndex];
 
     // Create or find judge
-    const judge = await prisma.judge.upsert({
-      where: { name: playerName },
-      create: { name: playerName },
-      update: {}
-    });
+    let judge;
+    try {
+      judge = await prisma.judge.upsert({
+        where: { name: playerName },
+        create: { name: playerName },
+        update: {}
+      });
+    } catch (error) {
+      console.error('Error creating/finding judge:', error);
+      return;
+    }
 
     // Find the team
     const team = await prisma.team.findFirst({
@@ -104,15 +157,22 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // Save answer to database
-    await prisma.answer.create({
-      data: {
-        answer: answerText,
-        question: { connect: { id: questionIndex + 1 } }, // Assuming question IDs start at 1
-        team: { connect: { id: team.id } },
-        judge: { connect: { id: judge.id } }
-      }
-    });
+    try {
+      // Save answer to database
+      const savedAnswer = await prisma.answer.create({
+        data: {
+          answer: answerText,
+          question: { connect: { id: questionIndex + 1 } },
+          team: { connect: { id: team.id } },
+          judge: { connect: { id: judge.id } },
+          session: { connect: { id: currentSession.id } }
+        }
+      });
+      console.log('Answer saved:', savedAnswer);
+    } catch (error) {
+      console.error('Error saving answer:', error);
+      return;
+    }
 
     // Update in-memory state
     if (!answersByTeam[currentTeam]) {
