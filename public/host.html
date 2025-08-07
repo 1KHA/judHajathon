@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Host Judging</title>
+</head>
+<body>
+  <h1>Host Judging</h1>
+  <button onclick="sendQuestion()">Send Questions</button>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    function sendQuestion() {
+      const questions = [
+        {
+          text: "What is 2 + 2?",
+          choices: ["3", "4", "5", "6"],
+          correct: "4"
+        },
+        {
+          text: "What is the capital of France?",
+          choices: ["Berlin", "London", "Paris", "Madrid"],
+          correct: "Paris"
+        },
+        {
+          text: "Which planet is known as the Red Planet?",
+          choices: ["Earth", "Mars", "Jupiter", "Saturn"],
+          correct: "Mars"
+        }
+      ];
+      socket.emit('start-question', questions);
+    }
+  </script>
+</body>
+</html>
