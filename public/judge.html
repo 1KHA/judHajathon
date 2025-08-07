@@ -9,6 +9,22 @@
       padding: 5px;
       background: #f0f0f0;
     }
+    .answer-btn {
+      margin: 5px;
+      padding: 8px 15px;
+      background: #e0e0e0;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .answer-btn.selected {
+      background: #4CAF50;
+      color: white;
+    }
+    .answer-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
   </style>
 </head>
 <body>
@@ -46,26 +62,35 @@
       container.innerHTML = '';
       console.log('Processing questions:', questions);
 
-      // Process the questions array
       questions.forEach((question, index) => {
-          const questionDiv = document.createElement('div');
-          questionDiv.style.marginBottom = '20px';
+        const questionDiv = document.createElement('div');
+        questionDiv.style.marginBottom = '20px';
 
-          const questionTitle = document.createElement('h2');
-          questionTitle.innerText = `Q${index + 1}: ${question.text}`;
-          questionDiv.appendChild(questionTitle);
+        const questionTitle = document.createElement('h2');
+        questionTitle.innerText = `Q${index + 1}: ${question.text}`;
+        questionDiv.appendChild(questionTitle);
 
-          const choicesDiv = document.createElement('div');
-          question.choices.forEach(choice => {
-            const btn = document.createElement('button');
-            btn.innerText = choice;
-            btn.onclick = () => socket.emit('submit-answer', { questionIndex: index, answer: choice });
-            choicesDiv.appendChild(btn);
-          });
-          questionDiv.appendChild(choicesDiv);
-
-          container.appendChild(questionDiv);
+        const choicesDiv = document.createElement('div');
+        question.choices.forEach(choice => {
+          const btn = document.createElement('button');
+          btn.className = 'answer-btn';
+          btn.innerText = choice;
+          btn.onclick = () => {
+            // Reset all buttons for this question
+            choicesDiv.querySelectorAll('.answer-btn').forEach(b => {
+              b.classList.remove('selected');
+              b.disabled = false;
+            });
+            // Mark this button as selected
+            btn.classList.add('selected');
+            btn.disabled = true;
+            socket.emit('submit-answer', { questionIndex: index, answer: choice });
+          };
+          choicesDiv.appendChild(btn);
         });
+        questionDiv.appendChild(choicesDiv);
+        container.appendChild(questionDiv);
+      });
     });
 
     socket.on('error-message', msg => alert(`Judging Error: ${msg}`));

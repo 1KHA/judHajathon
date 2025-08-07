@@ -1,6 +1,8 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 
 const app = express();
 const server = http.createServer(app);
@@ -30,7 +32,16 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('set-teams', (teamNames) => {
+  socket.on('set-teams', async (teamNames) => {
+    // Clear existing teams
+    await prisma.team.deleteMany({});
+    
+    // Create new teams
+    await prisma.team.createMany({
+      data: teamNames.map(name => ({ name }))
+    });
+    
+    // Update in-memory state
     teams = teamNames;
     currentTeamIndex = 0;
     answersByTeam = {};
@@ -70,20 +81,46 @@ io.on('connection', (socket) => {
     io.to('judge').emit('session-ended');
   });
 
-  socket.on('submit-answer', (answer) => {
+  socket.on('submit-answer', async (answerData) => {
     const playerName = players[socket.id]?.name || 'Unknown';
-    console.log('Answer received:', {
-      player: playerName,
-      team: teams[currentTeamIndex],
-      answer: answer.answer || answer // Handle both object and direct answer
+    const answerText = answerData.answer || answerData;
+    const questionIndex = answerData.questionIndex;
+    const currentTeam = teams[currentTeamIndex];
+
+    // Create or find judge
+    const judge = await prisma.judge.upsert({
+      where: { name: playerName },
+      create: { name: playerName },
+      update: {}
     });
-    
-    if (!answersByTeam[teams[currentTeamIndex]]) {
-      answersByTeam[teams[currentTeamIndex]] = [];
+
+    // Find the team
+    const team = await prisma.team.findFirst({
+      where: { name: currentTeam }
+    });
+
+    if (!team) {
+      console.error('Team not found:', currentTeam);
+      return;
     }
-    answersByTeam[teams[currentTeamIndex]].push({
+
+    // Save answer to database
+    await prisma.answer.create({
+      data: {
+        answer: answerText,
+        question: { connect: { id: questionIndex + 1 } }, // Assuming question IDs start at 1
+        team: { connect: { id: team.id } },
+        judge: { connect: { id: judge.id } }
+      }
+    });
+
+    // Update in-memory state
+    if (!answersByTeam[currentTeam]) {
+      answersByTeam[currentTeam] = [];
+    }
+    answersByTeam[currentTeam].push({
       player: playerName,
-      answer: answer.answer || answer // Handle both formats
+      answer: answerText
     });
     
     io.to('host').emit('answers-updated', answersByTeam);

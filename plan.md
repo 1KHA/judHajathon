@@ -55,6 +55,11 @@ This project is a simple real-time judging application inspired by Kahoot. It al
   - Host can add/remove teams before starting
   - Host controls which team is currently being judged
   - Answers are tracked by team
+- Improved judge UI:
+  - Added visual feedback for selected answers (green highlight)
+  - Disabled other options after selection
+  - Reset buttons when team changes
+  - Added consistent button styling
 - Fixed answer display issues:
   - Answers now show properly formatted text (no "[object Object]")
   - Handles both object and string answer formats
