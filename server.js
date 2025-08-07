@@ -40,6 +40,7 @@ io.on('connection', (socket) => {
         socket.join('judge');
         socket.emit('joined-success', name);
         io.to('judge').emit('participant-list', Object.values(players));
+        io.to('host').emit('judge-list', Object.values(players));
         console.log(`Judge created: ${name} (ID: ${judge.id})`);
       } catch (error) {
         console.error('Error creating judge:', error);

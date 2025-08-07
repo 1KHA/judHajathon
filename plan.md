@@ -51,6 +51,19 @@ This project is a simple real-time judging application inspired by Kahoot. It al
 5. Server logs answers and can be extended to update scores.
 
 ## Recent Updates
+- Added session-based data model:
+  - All teams, questions, and answers now belong to sessions
+  - Sessions track complete game rounds
+  - Prevents data conflicts between different game instances
+- Judge system improvements:
+  - Added unique constraint to judge names
+  - Ensures judges can be properly identified
+  - Enables reliable upsert operations
+  - Host can now see connected judges
+  - Prevents starting game without judges
+- Database schema updates:
+  - Added Session model with relationships to teams, questions and answers
+  - Modified Judge model with @unique name field
 - Added team management functionality:
   - Host can add/remove teams before starting
   - Host controls which team is currently being judged

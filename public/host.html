@@ -29,6 +29,10 @@
     <button onclick="endSession()">End Session</button>
   </div>
 
+  <div id="judgeList">
+    <h3>Connected Judges:</h3>
+    <ul id="judges"></ul>
+  </div>
   <button onclick="sendQuestion()">Send Questions</button>
 
   <div id="answers" class="answers">
@@ -111,6 +115,11 @@
     socket.on('team-changed', (team) => {
       currentTeam = team;
       document.getElementById('currentTeam').textContent = team;
+    });
+
+    socket.on('judge-list', (judges) => {
+      const judgesList = document.getElementById('judges');
+      judgesList.innerHTML = judges.map(j => `<li>${j.name}</li>`).join('');
     });
 
     socket.on('answers-updated', (answers) => {
