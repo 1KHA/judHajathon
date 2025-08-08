@@ -18,6 +18,7 @@ let players = {};
 let teams = [];
 let currentTeamIndex = 0;
 let answersByTeam = {};
+let currentSession = null;
 
 io.on('connection', (socket) => {
   console.log('New connection:', socket.id);

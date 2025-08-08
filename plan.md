@@ -51,6 +51,13 @@ This project is a simple real-time judging application inspired by Kahoot. It al
 5. Server logs answers and can be extended to update scores.
 
 ## Recent Updates
+- Added unique session IDs for tracking and debugging:
+  - Each session now has a unique UUID identifier
+  - Session ID displayed to both host and judges
+  - Used for issue tracking and session reference
+- Enhanced session management:
+  - Host must explicitly start session after setup
+  - Start button only enabled when teams, questions and judges are ready
 - Added session-based data model:
   - All teams, questions, and answers now belong to sessions
   - Sessions track complete game rounds
@@ -89,6 +96,7 @@ This project is a simple real-time judging application inspired by Kahoot. It al
   - Console logs for troubleshooting
 
 ## Potential Enhancements
+- Add session history and analytics using session IDs
 - Implement score calculation and update on the server.
 - Add real-time score display for judges and host.
 - Add authentication and dynamic PIN generation.
