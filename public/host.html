@@ -12,15 +12,13 @@
 <body>
   <h1>Host Judging</h1>
   
-  <div>
-    <h2>Teams</h2>
     <div>
-      <input type="text" id="teamInput" placeholder="Team name">
-      <button onclick="addTeam()">Add Team</button>
+      <h2>Teams</h2>
+      <select id="teamSelect" multiple style="width: 300px; height: 150px;">
+        <!-- Teams will be populated from database -->
+      </select>
+      <button onclick="setTeams()">Set Selected Teams</button>
     </div>
-    <div id="teamsList" class="team-list"></div>
-    <button onclick="setTeams()">Set Teams</button>
-  </div>
 
   <div class="team-controls">
     <h3>Current Team: <span id="currentTeam">None</span></h3>
@@ -33,7 +31,13 @@
     <h3>Connected Judges:</h3>
     <ul id="judges"></ul>
   </div>
-  <button onclick="sendQuestion()">Send Questions</button>
+  <div>
+    <h3>Questions</h3>
+    <select id="questionSelect" multiple style="width: 300px; height: 150px;">
+      <!-- Questions will be populated from database -->
+    </select>
+    <button onclick="sendQuestion()">Send Selected Questions</button>
+  </div>
 
   <div id="answers" class="answers">
     <h3>Answers</h3>
@@ -69,7 +73,10 @@
     }
 
     function setTeams() {
-      socket.emit('set-teams', teams);
+      const selectedTeams = Array.from(document.querySelectorAll('#teamSelect option:checked'))
+        .map(opt => opt.value);
+      console.log('Selected teams:', selectedTeams);
+      socket.emit('set-teams', selectedTeams);
     }
 
     function previousTeam() {
@@ -85,24 +92,18 @@
     }
 
     function sendQuestion() {
-      const questions = [
-        {
-          text: "What is 2 + 2?",
-          choices: ["3", "4", "5", "6"],
-          correct: "4"
-        },
-        {
-          text: "What is the capital of France?",
-          choices: ["Berlin", "London", "Paris", "Madrid"],
-          correct: "Paris"
-        },
-        {
-          text: "Which planet is known as the Red Planet?",
-          choices: ["Earth", "Mars", "Jupiter", "Saturn"],
-          correct: "Mars"
-        }
-      ];
-      socket.emit('start-question', questions);
+      const selectedQuestions = Array.from(document.querySelectorAll('#questionSelect option:checked'))
+        .map(opt => ({
+          id: opt.value,
+          text: opt.textContent
+        }));
+      
+      if (selectedQuestions.length === 0) {
+        alert('Please select at least one question');
+        return;
+      }
+      
+      socket.emit('start-question', selectedQuestions);
     }
 
     socket.on('teams-set', (teamList) => {
@@ -115,6 +116,31 @@
     socket.on('team-changed', (team) => {
       currentTeam = team;
       document.getElementById('currentTeam').textContent = team;
+      console.log('Team changed to:', team);
+    });
+
+    socket.on('error-message', (message) => {
+      alert(message);
+    });
+
+    socket.on('init-host-data', (data) => {
+      // Populate teams dropdown
+      const teamSelect = document.getElementById('teamSelect');
+      data.teams.forEach(team => {
+        const option = document.createElement('option');
+        option.value = team;
+        option.textContent = team;
+        teamSelect.appendChild(option);
+      });
+
+      // Populate questions dropdown
+      const questionSelect = document.getElementById('questionSelect');
+      data.questions.forEach(question => {
+        const option = document.createElement('option');
+        option.value = question.id;
+        option.textContent = question.text;
+        questionSelect.appendChild(option);
+      });
     });
 
     socket.on('judge-list', (judges) => {

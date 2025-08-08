@@ -52,6 +52,13 @@ io.on('connection', (socket) => {
   });
 
   socket.on('set-teams', async (teamNames) => {
+    console.log('Received teams:', teamNames);
+    if (!teamNames || teamNames.length === 0) {
+      console.error('No teams received');
+      socket.emit('error-message', 'Please select at least one team');
+      return;
+    }
+
     // Create new session
     currentSession = await prisma.session.create({
       data: {
@@ -66,44 +73,59 @@ io.on('connection', (socket) => {
     teams = teamNames;
     currentTeamIndex = 0;
     answersByTeam = {};
+    console.log('Teams set:', teams);
+    console.log('Session created:', currentSession);
     socket.emit('teams-set', teams);
+    io.to('host').emit('team-changed', teams[currentTeamIndex]);
   });
 
-  socket.on('start-question', async (questions) => {
+  socket.on('start-question', async (questionIds) => {
     if (!currentSession) {
       console.error('No active session');
       return;
     }
     
     try {
-      const createdQuestions = await Promise.all(
-        questions.map((q, index) => 
-          prisma.question.create({
-            data: {
-              text: q.text,
-              choices: q.choices,
-              correct: q.correct,
-              session: {
-                connect: { id: currentSession.id }
-              }
-            }
-          })
-        )
-      );
+      // Get full question details from database
+      const questions = await prisma.question.findMany({
+        where: { id: { in: questionIds.map(q => parseInt(q.id)) } }
+      });
       
-      console.log('Questions saved:', createdQuestions);
+      console.log('Sending questions to judges:', questions);
+      console.log('Current team:', teams[currentTeamIndex]);
       
       io.to('judge').emit('question', {
         questions,
         currentTeam: teams[currentTeamIndex]
+      });
+      
+      // Log session state
+      console.log('Session state:', {
+        currentSession,
+        teams,
+        currentTeamIndex,
+        answersByTeam
       });
     } catch (error) {
       console.error('Error saving questions:', error);
     }
   });
 
-  socket.on('join-host', () => {
+  socket.on('join-host', async () => {
     socket.join('host');
+    // Send existing teams and questions to host
+    const teams = await prisma.team.findMany({
+      distinct: ['name'],
+      select: { name: true }
+    });
+    const questions = await prisma.question.findMany({
+      distinct: ['text'],
+      select: { id: true, text: true }
+    });
+    socket.emit('init-host-data', { 
+      teams: teams.map(t => t.name),
+      questions 
+    });
   });
 
   socket.on('next-team', () => {
