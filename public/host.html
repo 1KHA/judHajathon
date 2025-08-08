@@ -44,6 +44,11 @@
     <div id="answersList"></div>
   </div>
 
+  <div id="sessionInfo">
+    <h3>Session ID: <span id="sessionId">Not started</span></h3>
+    <button id="startSessionBtn" disabled>Start Session</button>
+  </div>
+
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io();
@@ -121,6 +126,33 @@
 
     socket.on('error-message', (message) => {
       alert(message);
+    });
+
+    // Enable start session button when ready
+    function checkSessionReady() {
+      const hasTeams = document.querySelectorAll('#teamSelect option:checked').length > 0;
+      const hasQuestions = document.querySelectorAll('#questionSelect option:checked').length > 0;
+      const hasJudges = document.getElementById('judges').children.length > 0;
+      document.getElementById('startSessionBtn').disabled = !(hasTeams && hasQuestions && hasJudges);
+    }
+
+    // Check session readiness on any change
+    document.getElementById('teamSelect').addEventListener('change', checkSessionReady);
+    document.getElementById('questionSelect').addEventListener('change', checkSessionReady);
+    socket.on('judge-list', (judges) => {
+      const judgesList = document.getElementById('judges');
+      judgesList.innerHTML = judges.map(j => `<li>${j.name}</li>`).join('');
+      checkSessionReady();
+    });
+
+    // Handle session start
+    document.getElementById('startSessionBtn').addEventListener('click', () => {
+      socket.emit('start-session');
+    });
+
+    socket.on('session-started', (sessionId) => {
+      document.getElementById('sessionId').textContent = sessionId;
+      alert(`Session started with ID: ${sessionId}`);
     });
 
     socket.on('init-host-data', (data) => {

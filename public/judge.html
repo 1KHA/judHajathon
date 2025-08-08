@@ -37,9 +37,17 @@
     <div id="questions-container"></div>
   </div>
 
+  <div id="sessionInfo">
+    <h3>Session ID: <span id="sessionId">Not started</span></h3>
+  </div>
+
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io();
+    
+    socket.on('session-started', (sessionId) => {
+      document.getElementById('sessionId').textContent = sessionId;
+    });
 
     function joinGame() {
       const name = document.getElementById('name').value;

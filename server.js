@@ -3,6 +3,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const { v4: uuidv4 } = require('uuid');
 
 const app = express();
 const server = http.createServer(app);
@@ -59,14 +60,26 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // Create new session
+    // Create new session with unique ID
+    const sessionId = uuidv4();
     currentSession = await prisma.session.create({
       data: {
-        name: `Session ${new Date().toISOString()}`,
+        name: `Session ${sessionId}`,
+        sessionId: sessionId,
         teams: {
           create: teamNames.map(name => ({ name }))
         }
       }
+    });
+    
+    // Run database migrations to apply schema changes
+    await prisma.$executeRaw`PRAGMA foreign_keys=OFF`;
+    await prisma.$executeRaw`PRAGMA foreign_keys=ON`;
+    
+    // Emit session created event with session ID
+    socket.emit('session-created', { 
+      sessionId,
+      teams: teamNames 
     });
     
     // Update in-memory state
@@ -140,6 +153,17 @@ io.on('connection', (socket) => {
       currentTeamIndex--;
       io.to('host').emit('team-changed', teams[currentTeamIndex]);
     }
+  });
+
+  socket.on('start-session', () => {
+    if (!currentSession) {
+      socket.emit('error-message', 'No session created yet');
+      return;
+    }
+    
+    // Broadcast session ID to all connected clients
+    io.emit('session-started', currentSession.sessionId);
+    console.log(`Session started with ID: ${currentSession.sessionId}`);
   });
 
   socket.on('end-session', () => {
