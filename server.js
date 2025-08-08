@@ -134,13 +134,83 @@ io.on('connection', (socket) => {
     });
     const questions = await prisma.question.findMany({
       distinct: ['text'],
-      select: { id: true, text: true }
+      select: { id: true, text: true, section: true, weight: true }
     });
     socket.emit('init-host-data', { 
       teams: teams.map(t => t.name),
-      questions 
+      questions,
+      sections: [...new Set(questions.map(q => q.section))]
     });
   });
+
+  socket.on('save-questions', async (questions) => {
+    if (!currentSession) {
+      socket.emit('error-message', 'No active session');
+      return;
+    }
+
+    try {
+      // Delete existing questions for this session
+      await prisma.question.deleteMany({
+        where: { sessionId: currentSession.id }
+      });
+
+      // Create new questions with sections and weights
+      const createdQuestions = await prisma.$transaction(
+        questions.map(q => prisma.question.create({
+          data: {
+            text: q.text,
+            choices: q.choices,
+            correct: q.correct,
+            section: q.section,
+            weight: q.weight,
+            session: { connect: { id: currentSession.id } }
+          }
+        }))
+      );
+
+      // Calculate points distribution
+      const categories = createdQuestions.reduce((acc, q) => {
+        const existing = acc.find(c => c.name === q.section);
+        if (existing) {
+          existing.questions++;
+        } else {
+          acc.push({ name: q.section, weight: q.weight, questions: 1 });
+        }
+        return acc;
+      }, []);
+
+      const pointsDistribution = calculatePointsDistribution(
+        categories,
+        currentSession.totalPoints || 100
+      );
+
+      socket.emit('questions-saved', {
+        questions: createdQuestions,
+        pointsDistribution
+      });
+      console.log('Questions saved:', createdQuestions.length);
+    } catch (error) {
+      console.error('Error saving questions:', error);
+      socket.emit('error-message', 'Failed to save questions');
+    }
+  });
+
+  function calculatePointsDistribution(categories, totalPoints) {
+    const totalWeight = categories.reduce((sum, cat) => sum + cat.weight, 0);
+    return categories.map(cat => {
+      const categoryPoints = (cat.weight / totalWeight) * totalPoints;
+      const pointsPerQuestion = categoryPoints / cat.questions;
+
+      return {
+        name: cat.name,
+        weight: cat.weight,
+        questions: cat.questions,
+        totalPoints: Number(categoryPoints.toFixed(2)),
+        pointsPerQuestion: Number(pointsPerQuestion.toFixed(2))
+      };
+    });
+  }
 
   socket.on('next-team', () => {
     if (currentTeamIndex < teams.length - 1) {

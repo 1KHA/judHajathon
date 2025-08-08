@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Questions</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .section {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .question {
+            margin-bottom: 10px;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 3px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            box-sizing: border-box;
+        }
+        .points-summary {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e9f7ef;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Add Questions</h1>
+    
+    <div id="sections-container">
+        <!-- Sections will be added here -->
+    </div>
+
+    <button id="add-section">Add Section</button>
+    <button id="save-questions">Save Questions</button>
+
+    <div class="points-summary">
+        <h3>Points Distribution</h3>
+        <div id="points-display"></div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        let sections = [];
+        let totalPoints = 100;
+
+        document.getElementById('add-section').addEventListener('click', addSection);
+        document.getElementById('save-questions').addEventListener('click', saveQuestions);
+
+        function addSection() {
+            const sectionId = Date.now();
+            const section = {
+                id: sectionId,
+                name: `Section ${sections.length + 1}`,
+                weight: 1,
+                questions: []
+            };
+            sections.push(section);
+            renderSections();
+        }
+
+        function addQuestion(sectionId) {
+            const section = sections.find(s => s.id === sectionId);
+            if (section) {
+                section.questions.push({
+                    text: '',
+                    choices: ['', '', '', ''],
+                    correct: 0
+                });
+                renderSections();
+            }
+        }
+
+        function removeQuestion(sectionId, questionIndex) {
+            const section = sections.find(s => s.id === sectionId);
+            if (section) {
+                section.questions.splice(questionIndex, 1);
+                renderSections();
+            }
+        }
+
+        function removeSection(sectionId) {
+            sections = sections.filter(s => s.id !== sectionId);
+            renderSections();
+        }
+
+        function renderSections() {
+            const container = document.getElementById('sections-container');
+            container.innerHTML = '';
+
+            sections.forEach(section => {
+                const sectionEl = document.createElement('div');
+                sectionEl.className = 'section';
+                sectionEl.innerHTML = `
+                    <div class="section-header">
+                        <h3>
+                            <input type="text" value="${section.name}" 
+                                   onchange="updateSectionName(${section.id}, this.value)">
+                        </h3>
+                        <div>
+                            Weight: <input type="number" min="0.1" step="0.1" value="${section.weight}" 
+                                          onchange="updateSectionWeight(${section.id}, this.value)">
+                            <button onclick="removeSection(${section.id})">Remove</button>
+                        </div>
+                    </div>
+                    <div id="questions-${section.id}"></div>
+                    <button onclick="addQuestion(${section.id})">Add Question</button>
+                `;
+                container.appendChild(sectionEl);
+
+                const questionsContainer = document.getElementById(`questions-${section.id}`);
+                section.questions.forEach((question, qIndex) => {
+                    const questionEl = document.createElement('div');
+                    questionEl.className = 'question';
+                    questionEl.innerHTML = `
+                        <textarea placeholder="Question text" 
+                                  onchange="updateQuestionText(${section.id}, ${qIndex}, this.value)">${question.text}</textarea>
+                        ${question.choices.map((choice, cIndex) => `
+                            <input type="text" placeholder="Choice ${cIndex + 1}" 
+                                   value="${choice}" 
+                                   onchange="updateQuestionChoice(${section.id}, ${qIndex}, ${cIndex}, this.value)">
+                        `).join('')}
+                        <div>
+                            Correct choice: 
+                            <select onchange="updateCorrectChoice(${section.id}, ${qIndex}, this.value)">
+                                ${question.choices.map((_, cIndex) => `
+                                    <option value="${cIndex}" ${question.correct === cIndex ? 'selected' : ''}>
+                                        Choice ${cIndex + 1}
+                                    </option>
+                                `).join('')}
+                            </select>
+                            <button onclick="removeQuestion(${section.id}, ${qIndex})">Remove</button>
+                        </div>
+                    `;
+                    questionsContainer.appendChild(questionEl);
+                });
+            });
+
+            updatePointsDisplay();
+        }
+
+        function updateSectionName(sectionId, name) {
+            const section = sections.find(s => s.id === sectionId);
+            if (section) section.name = name;
+        }
+
+        function updateSectionWeight(sectionId, weight) {
+            const section = sections.find(s => s.id === sectionId);
+            if (section) section.weight = parseFloat(weight);
+            updatePointsDisplay();
+        }
+
+        function updateQuestionText(sectionId, questionIndex, text) {
+            const section = sections.find(s => s.id === sectionId);
+            if (section) section.questions[questionIndex].text = text;
+        }
+
+        function updateQuestionChoice(sectionId, questionIndex, choiceIndex, value) {
+            const section = sections.find(s => s.id === sectionId);
+            if (section) section.questions[questionIndex].choices[choiceIndex] = value;
+        }
+
+        function updateCorrectChoice(sectionId, questionIndex, value) {
+            const section = sections.find(s => s.id === sectionId);
+            if (section) section.questions[questionIndex].correct = parseInt(value);
+        }
+
+        function updatePointsDisplay() {
+            const pointsDisplay = document.getElementById('points-display');
+            
+            if (sections.length === 0) {
+                pointsDisplay.innerHTML = '<p>Add sections to see points distribution</p>';
+                return;
+            }
+
+            const totalWeight = sections.reduce((sum, section) => sum + section.weight, 0);
+            const pointsData = sections.map(section => {
+                const sectionPoints = (section.weight / totalWeight) * totalPoints;
+                const pointsPerQuestion = section.questions.length > 0 
+                    ? sectionPoints / section.questions.length 
+                    : 0;
+                
+                return {
+                    name: section.name,
+                    weight: section.weight,
+                    questionCount: section.questions.length,
+                    totalPoints: sectionPoints.toFixed(2),
+                    pointsPerQuestion: pointsPerQuestion.toFixed(2)
+                };
+            });
+
+            pointsDisplay.innerHTML = `
+                <p>Total Points: ${totalPoints}</p>
+                <table>
+                    <tr>
+                        <th>Section</th>
+                        <th>Weight</th>
+                        <th>Questions</th>
+                        <th>Total Points</th>
+                        <th>Points per Question</th>
+                    </tr>
+                    ${pointsData.map(data => `
+                        <tr>
+                            <td>${data.name}</td>
+                            <td>${data.weight}</td>
+                            <td>${data.questionCount}</td>
+                            <td>${data.totalPoints}</td>
+                            <td>${data.pointsPerQuestion}</td>
+                        </tr>
+                    `).join('')}
+                </table>
+            `;
+        }
+
+        function saveQuestions() {
+            if (sections.length === 0) {
+                alert('Please add at least one section with questions');
+                return;
+            }
+
+            const questions = [];
+            sections.forEach(section => {
+                section.questions.forEach(question => {
+                    questions.push({
+                        text: question.text,
+                        choices: question.choices,
+                        correct: question.choices[question.correct],
+                        section: section.name,
+                        weight: section.weight
+                    });
+                });
+            });
+
+            socket.emit('save-questions', questions);
+        }
+
+        // Initialize with one section
+        addSection();
+    </script>
+</body>
+</html>
