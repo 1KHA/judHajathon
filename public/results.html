@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Session Results</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .session {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+        .team-result {
+            margin: 10px 0;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 3px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <h1>Session Results</h1>
+    <div id="results-container">
+        <!-- Results will be populated here -->
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        
+        // Fetch all session results when page loads
+        socket.emit('get-all-results');
+        
+        socket.on('all-results', (results) => {
+            const container = document.getElementById('results-container');
+            
+            if (results.length === 0) {
+                container.innerHTML = '<p>No results available</p>';
+                return;
+            }
+            
+            container.innerHTML = results.map(session => `
+                <div class="session">
+                    <h2>Session: ${session.name} (ID: ${session.sessionId})</h2>
+                    <p>Created: ${new Date(session.createdAt).toLocaleString()}</p>
+                    <div>
+                        ${session.results.map(result => `
+                            <div class="team-result">
+                                <h3>Team: ${result.team.name}</h3>
+                                <p>Total Points: ${result.totalPoints}</p>
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Question</th>
+                                            <th>Judge</th>
+                                            <th>Answer</th>
+                                            <th>Points</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${JSON.parse(result.details).answers.map(answer => `
+                                            <tr>
+                                                <td>${answer.questionText || 'N/A'}</td>
+                                                <td>${answer.judgeName || 'N/A'}</td>
+                                                <td>${answer.answer || 'N/A'}</td>
+                                                <td>${answer.points || '0'}</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+        });
+    </script>
+</body>
+</html>

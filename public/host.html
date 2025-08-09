@@ -31,13 +31,17 @@
     <h3>Connected Judges:</h3>
     <ul id="judges"></ul>
   </div>
-  <div>
-    <h3>Questions</h3>
-    <select id="questionSelect" multiple style="width: 300px; height: 150px;">
-      <!-- Questions will be populated from database -->
-    </select>
-    <button onclick="sendQuestion()">Send Selected Questions</button>
-  </div>
+    <div>
+      <h3>Question Banks</h3>
+      <select id="bankSelect" style="width: 300px; margin-bottom: 10px;">
+        <option value="">Select a question bank</option>
+      </select>
+      <h3>Questions</h3>
+      <select id="questionSelect" multiple style="width: 300px; height: 150px;">
+        <!-- Questions will be populated from database -->
+      </select>
+      <button onclick="sendQuestion()">Send Selected Questions</button>
+    </div>
 
   <div id="answers" class="answers">
     <h3>Answers</h3>
@@ -49,9 +53,12 @@
     <button id="startSessionBtn" disabled>Start Session</button>
   </div>
 
-  <div style="margin: 20px 0;">
+  <div style="margin: 20px 0; display: flex; gap: 10px;">
     <a href="/add_questions.html" style="padding: 8px 15px; background: #4CAF50; color: white; text-decoration: none; border-radius: 3px;">
       Add/Edit Questions
+    </a>
+    <a href="/results.html" style="padding: 8px 15px; background: #2196F3; color: white; text-decoration: none; border-radius: 3px;">
+      View Results
     </a>
   </div>
 
@@ -171,6 +178,15 @@
         teamSelect.appendChild(option);
       });
 
+      // Populate question banks dropdown
+      const bankSelect = document.getElementById('bankSelect');
+      data.questionBanks.forEach(bank => {
+        const option = document.createElement('option');
+        option.value = bank.id;
+        option.textContent = bank.name;
+        bankSelect.appendChild(option);
+      });
+
       // Populate questions dropdown
       const questionSelect = document.getElementById('questionSelect');
       data.questions.forEach(question => {
@@ -178,6 +194,31 @@
         option.value = question.id;
         option.textContent = question.text;
         questionSelect.appendChild(option);
+      });
+
+      // Handle bank selection
+      bankSelect.addEventListener('change', function() {
+        questionSelect.innerHTML = '';
+        const bankId = this.value;
+        if (bankId) {
+          const bank = data.questionBanks.find(b => b.id == bankId);
+          if (bank) {
+            bank.questions.forEach(question => {
+              const option = document.createElement('option');
+              option.value = question.id;
+              option.textContent = question.text;
+              questionSelect.appendChild(option);
+            });
+          }
+        } else {
+          // Show all questions when no bank selected
+          data.questions.forEach(question => {
+            const option = document.createElement('option');
+            option.value = question.id;
+            option.textContent = question.text;
+            questionSelect.appendChild(option);
+          });
+        }
       });
     });
 
