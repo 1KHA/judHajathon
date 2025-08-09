@@ -33,9 +33,12 @@
   <input type="text" id="name" placeholder="Your name">
   <button onclick="joinGame()">Join</button>
 
-  <div id="question-box" style="display:none;">
-    <div id="questions-container"></div>
-  </div>
+    <div id="question-box" style="display:none;">
+      <div id="questions-container"></div>
+      <button id="submitFinalBtn" style="margin-top: 20px; padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 4px; display: none;">
+        Submit Final Answers
+      </button>
+    </div>
 
   <div id="sessionInfo">
     <h3>Session ID: <span id="sessionId">Not started</span></h3>
@@ -69,9 +72,33 @@
       const container = document.getElementById('questions-container');
       container.innerHTML = '';
       console.log('Processing questions:', questions);
+      
+      // Show submit button when questions are received
+      document.getElementById('submitFinalBtn').style.display = 'block';
+      document.getElementById('submitFinalBtn').onclick = () => {
+        const answers = [];
+        container.querySelectorAll('.answer-btn.selected').forEach(btn => {
+          const questionIndex = parseInt(btn.closest('div').getAttribute('data-index'));
+          answers.push({
+            questionIndex,
+            answer: btn.innerText
+          });
+        });
+        // Get team ID from the current session data
+        const teamId = data.teamId || 0; // Default to 0 if not found
+        if (teamId === 0) {
+          alert('Error: No team selected');
+          return;
+        }
+        socket.emit('submit-final-answers', {
+          teamId: parseInt(teamId),
+          answers
+        });
+      };
 
       questions.forEach((question, index) => {
         const questionDiv = document.createElement('div');
+        questionDiv.setAttribute('data-index', index);
         questionDiv.style.marginBottom = '20px';
 
         const questionTitle = document.createElement('h2');

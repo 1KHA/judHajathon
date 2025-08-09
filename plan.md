@@ -51,49 +51,35 @@ This project is a simple real-time judging application inspired by Kahoot. It al
 5. Server logs answers and can be extended to update scores.
 
 ## Recent Updates
-- Added unique session IDs for tracking and debugging:
-  - Each session now has a unique UUID identifier
-  - Session ID displayed to both host and judges
-  - Used for issue tracking and session reference
-- Enhanced session management:
-  - Host must explicitly start session after setup
-  - Start button only enabled when teams, questions and judges are ready
-- Added session-based data model:
-  - All teams, questions, and answers now belong to sessions
-  - Sessions track complete game rounds
-  - Prevents data conflicts between different game instances
-- Judge system improvements:
-  - Added unique constraint to judge names
-  - Ensures judges can be properly identified
-  - Enables reliable upsert operations
-  - Host can now see connected judges
-  - Prevents starting game without judges
-- Database schema updates:
-  - Added Session model with relationships to teams, questions and answers
-  - Modified Judge model with @unique name field
-- Added team management functionality:
-  - Host can add/remove teams before starting
-  - Host controls which team is currently being judged
-  - Answers are tracked by team
-- Improved judge UI:
-  - Added visual feedback for selected answers (green highlight)
-  - Disabled other options after selection
-  - Reset buttons when team changes
-  - Added consistent button styling
-- Fixed answer display issues:
-  - Answers now show properly formatted text (no "[object Object]")
-  - Handles both object and string answer formats
-  - Shows fallback for unknown players
-  - Improved answer grouping and display
-- Fixed question display issues:
-  - Questions now properly show for judges
-  - Added data validation for question array
-  - Improved error handling
-- Added comprehensive logging:
-  - Server logs answer details (player, team, answer)
-  - Client logs received answers
-  - Debug logs for answer processing
-  - Console logs for troubleshooting
+- Added question bank functionality:
+  - Questions can now be organized into named banks/collections
+  - Host can select from available banks when sending questions
+  - Questions can be saved to either sessions or banks
+- Enhanced database schema:
+  - Added QuestionBank model with @unique name constraint
+  - Questions can belong to either sessions or banks
+  - Added composite unique constraint for SessionResult (sessionId + teamId)
+- Improved question management:
+  - Added weighted scoring by sections
+  - Total points can be customized per session
+  - Points distribution calculated automatically
+  - Added question sections with weights
+- Host interface improvements:
+  - Added bank selection dropdown
+  - Shows points distribution summary
+  - Better question filtering by bank
+- Backend enhancements:
+  - Proper error handling for bank operations
+  - Logging for question saving and bank creation
+  - Validation for question weights and points
+- Fixed critical issues:
+  - Corrected Prisma query structure for bank associations
+  - Fixed session result saving with composite key
+  - Resolved question display filtering bugs
+- Added comprehensive documentation:
+  - Updated schema documentation
+  - Added comments for new functionality
+  - Improved error messages
 
 ## Potential Enhancements
 - Add session history and analytics using session IDs

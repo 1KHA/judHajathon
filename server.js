@@ -108,9 +108,15 @@ io.on('connection', (socket) => {
       console.log('Sending questions to judges:', questions);
       console.log('Current team:', teams[currentTeamIndex]);
       
+      // Find the team ID for the current team
+      const team = await prisma.team.findFirst({
+        where: { name: teams[currentTeamIndex] }
+      });
+
       io.to('judge').emit('question', {
         questions,
-        currentTeam: teams[currentTeamIndex]
+        currentTeam: teams[currentTeamIndex],
+        teamId: team?.id || 0
       });
       
       // Log session state
@@ -348,6 +354,44 @@ io.on('connection', (socket) => {
       
       io.to('host').emit('answers-updated', answersByTeam);
     });
+
+  socket.on('submit-final-answers', async ({teamId, answers}) => {
+    const playerName = players[socket.id]?.name;
+    if (!playerName) {
+      socket.emit('error-message', 'Not authenticated');
+      return;
+    }
+
+    try {
+      const judge = await prisma.judge.findUnique({
+        where: { name: playerName }
+      });
+
+      await prisma.finalAnswer.upsert({
+        where: {
+          sessionId_teamId_judgeId: {
+            sessionId: currentSession.id,
+            teamId: parseInt(teamId),
+            judgeId: judge.id
+          }
+        },
+        create: {
+          sessionId: currentSession.id,
+          teamId: parseInt(teamId),
+          judgeId: judge.id,
+          answers: JSON.stringify(answers)
+        },
+        update: {
+          answers: JSON.stringify(answers)
+        }
+      });
+
+      socket.emit('final-answers-submitted');
+    } catch (error) {
+      console.error('Error saving final answers:', error);
+      socket.emit('error-message', 'Failed to save final answers');
+    }
+  });
 
   socket.on('disconnect', () => {
     delete players[socket.id];

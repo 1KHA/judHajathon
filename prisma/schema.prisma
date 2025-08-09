@@ -19,6 +19,7 @@ model Session {
   questions Question[]
   answers   Answer[]
   results   SessionResult[]
+  finalAnswers FinalAnswer[]
   totalPoints Int?   @default(100)
 }
 
@@ -29,6 +30,7 @@ model Team {
   sessionId Int
   answers   Answer[]
   results   SessionResult[]
+  finalAnswers FinalAnswer[]
   createdAt DateTime @default(now())
 }
 
@@ -58,6 +60,7 @@ model Judge {
   id        Int      @id @default(autoincrement())
   name      String   @unique
   answers   Answer[]
+  finalAnswers FinalAnswer[]
   createdAt DateTime @default(now())
 }
 
@@ -87,4 +90,18 @@ model SessionResult {
   createdAt DateTime @default(now())
 
   @@unique([sessionId, teamId])
+}
+
+model FinalAnswer {
+  id        Int      @id @default(autoincrement())
+  session   Session  @relation(fields: [sessionId], references: [id])
+  sessionId Int
+  team      Team     @relation(fields: [teamId], references: [id])
+  teamId    Int
+  judge     Judge    @relation(fields: [judgeId], references: [id])
+  judgeId   Int
+  answers   Json
+  createdAt DateTime @default(now())
+
+  @@unique([sessionId, teamId, judgeId])
 }
