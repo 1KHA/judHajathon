@@ -34,7 +34,7 @@ model Team {
 
 model QuestionBank {
   id        Int       @id @default(autoincrement())
-  name      String
+  name      String    @unique
   questions Question[]
   createdAt DateTime  @default(now())
 }
