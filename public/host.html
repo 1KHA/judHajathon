@@ -169,8 +169,11 @@
     });
 
     socket.on('init-host-data', (data) => {
+      console.log('Received host data:', data);
+      
       // Populate teams dropdown
       const teamSelect = document.getElementById('teamSelect');
+      teamSelect.innerHTML = '';
       data.teams.forEach(team => {
         const option = document.createElement('option');
         option.value = team;
@@ -180,6 +183,7 @@
 
       // Populate question banks dropdown
       const bankSelect = document.getElementById('bankSelect');
+      bankSelect.innerHTML = '<option value="">Select a question bank</option>';
       data.questionBanks.forEach(bank => {
         const option = document.createElement('option');
         option.value = bank.id;
@@ -189,6 +193,9 @@
 
       // Populate questions dropdown
       const questionSelect = document.getElementById('questionSelect');
+      questionSelect.innerHTML = '';
+      
+      // Show all questions by default
       data.questions.forEach(question => {
         const option = document.createElement('option');
         option.value = question.id;
@@ -202,7 +209,7 @@
         const bankId = this.value;
         if (bankId) {
           const bank = data.questionBanks.find(b => b.id == bankId);
-          if (bank) {
+          if (bank && bank.questions) {
             bank.questions.forEach(question => {
               const option = document.createElement('option');
               option.value = question.id;

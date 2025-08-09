@@ -161,6 +161,7 @@ io.on('connection', (socket) => {
           create: { name: bankName },
           update: {}
         });
+        console.log('Bank created/updated:', bank);
       }
 
       if (currentSession) {
@@ -186,10 +187,15 @@ io.on('connection', (socket) => {
             section: q.section,
             weight: q.weight,
             ...(currentSession && { session: { connect: { id: currentSession.id } }}),
-            ...(bank && { bank: { connect: { id: bank.id } }})
+            ...(bank && { 
+              bank: { 
+                connect: { id: bank.id }
+              } 
+            })
           }
         }))
       );
+      console.log('Questions created:', createdQuestions.length, 'in bank:', bank?.name);
 
       // Calculate points distribution
       const categories = createdQuestions.reduce((acc, q) => {

@@ -85,4 +85,6 @@ model SessionResult {
   totalPoints Float
   details   Json
   createdAt DateTime @default(now())
+
+  @@unique([sessionId, teamId])
 }
