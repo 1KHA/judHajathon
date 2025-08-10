@@ -129,7 +129,7 @@
         question.choices.forEach(choice => {
           const btn = document.createElement('button');
           btn.className = 'answer-btn';
-          btn.innerText = choice;
+          btn.innerText = typeof choice === 'object' ? choice.text : choice;
           btn.onclick = () => {
             // Reset all buttons for this question
             choicesDiv.querySelectorAll('.answer-btn').forEach(b => {
@@ -139,7 +139,10 @@
             // Mark this button as selected
             btn.classList.add('selected');
             btn.disabled = true;
-            socket.emit('submit-answer', { questionIndex: index, answer: choice });
+            socket.emit('submit-answer', { 
+              questionIndex: index, 
+              answer: typeof choice === 'object' ? choice.text : choice 
+            });
           };
           choicesDiv.appendChild(btn);
         });

@@ -106,7 +106,12 @@
             if (section) {
                 section.questions.push({
                     text: '',
-                    choices: ['', '', '', ''],
+                    choices: [
+                        { text: '', weight: 1 },
+                        { text: '', weight: 1 },
+                        { text: '', weight: 1 },
+                        { text: '', weight: 1 }
+                    ],
                     correct: 0
                 });
                 renderSections();
@@ -158,9 +163,15 @@
                         <textarea placeholder="Question text" 
                                   onchange="updateQuestionText(${section.id}, ${qIndex}, this.value)">${question.text}</textarea>
                         ${question.choices.map((choice, cIndex) => `
-                            <input type="text" placeholder="Choice ${cIndex + 1}" 
-                                   value="${choice}" 
-                                   onchange="updateQuestionChoice(${section.id}, ${qIndex}, ${cIndex}, this.value)">
+                            <div style="display: flex; align-items: center; gap: 10px; margin: 5px 0;">
+                                <input type="text" placeholder="Choice ${cIndex + 1}" 
+                                       value="${choice.text || choice}" 
+                                       onchange="updateQuestionChoice(${section.id}, ${qIndex}, ${cIndex}, this.value)"
+                                       style="flex: 1;">
+                                <input type="number" min="0" step="0.1" value="${choice.weight || 1}" 
+                                       onchange="updateQuestionChoiceWeight(${section.id}, ${qIndex}, ${cIndex}, this.value)"
+                                       style="width: 60px;" placeholder="Weight">
+                            </div>
                         `).join('')}
                         <div>
                             Correct choice: 
@@ -199,7 +210,30 @@
 
         function updateQuestionChoice(sectionId, questionIndex, choiceIndex, value) {
             const section = sections.find(s => s.id === sectionId);
-            if (section) section.questions[questionIndex].choices[choiceIndex] = value;
+            if (section) {
+                if (typeof section.questions[questionIndex].choices[choiceIndex] === 'object') {
+                    section.questions[questionIndex].choices[choiceIndex].text = value;
+                } else {
+                    section.questions[questionIndex].choices[choiceIndex] = {
+                        text: value,
+                        weight: 1
+                    };
+                }
+            }
+        }
+
+        function updateQuestionChoiceWeight(sectionId, questionIndex, choiceIndex, value) {
+            const section = sections.find(s => s.id === sectionId);
+            if (section) {
+                if (typeof section.questions[questionIndex].choices[choiceIndex] === 'object') {
+                    section.questions[questionIndex].choices[choiceIndex].weight = parseFloat(value) || 0;
+                } else {
+                    section.questions[questionIndex].choices[choiceIndex] = {
+                        text: section.questions[questionIndex].choices[choiceIndex],
+                        weight: parseFloat(value) || 0
+                    };
+                }
+            }
         }
 
         function updateCorrectChoice(sectionId, questionIndex, value) {
@@ -266,7 +300,7 @@
                     questions.push({
                         text: question.text,
                         choices: question.choices,
-                        correct: question.choices[question.correct],
+                        correct: question.choices[question.correct].text,
                         section: section.name,
                         weight: section.weight
                     });

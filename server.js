@@ -311,16 +311,18 @@ io.on('connection', (socket) => {
 
       try {
         // Save answer to database
-        const savedAnswer = await prisma.answer.create({
-          data: {
-            answer: answerText,
-            points: answerData.points || 0,
-            question: { connect: { id: questionIndex + 1 } },
-            team: { connect: { id: team.id } },
-            judge: { connect: { id: judge.id } },
-            session: { connect: { id: currentSession.id } }
-          }
-        });
+            // Extract answer text if it's an object, otherwise use as-is
+            const answerTextValue = typeof answerText === 'object' ? answerText.text : answerText;
+            const savedAnswer = await prisma.answer.create({
+                data: {
+                    answer: answerTextValue,
+                    points: answerData.points || 0,
+                    question: { connect: { id: questionIndex + 1 } },
+                    team: { connect: { id: team.id } },
+                    judge: { connect: { id: judge.id } },
+                    session: { connect: { id: currentSession.id } }
+                }
+            });
         console.log('Answer saved:', savedAnswer);
 
         // Get all answers for this team in this session
