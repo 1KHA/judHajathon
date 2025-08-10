@@ -51,6 +51,25 @@ This project is a simple real-time judging application inspired by Kahoot. It al
 5. Server logs answers and can be extended to update scores.
 
 ## Recent Updates
+- Added final answer submission feature:
+  - Judges can submit all answers at once
+  - Prevents duplicate submissions per judge/team
+  - Visual feedback for submission status
+- Improved judge interface:
+  - Added hover/active states for buttons
+  - Better visual feedback for interactions
+  - Fixed question indexing issues
+- Enhanced database schema:
+  - Added FinalAnswer model with composite unique constraint
+  - Proper relationships between judges, teams and sessions
+- Backend improvements:
+  - Robust error handling for final submissions
+  - Validation for answer data
+  - Proper team ID handling
+- UI/UX refinements:
+  - Consistent button styling
+  - Clear interactive states
+  - Error prevention for invalid submissions
 - Added question bank functionality:
   - Questions can now be organized into named banks/collections
   - Host can select from available banks when sending questions
@@ -64,22 +83,6 @@ This project is a simple real-time judging application inspired by Kahoot. It al
   - Total points can be customized per session
   - Points distribution calculated automatically
   - Added question sections with weights
-- Host interface improvements:
-  - Added bank selection dropdown
-  - Shows points distribution summary
-  - Better question filtering by bank
-- Backend enhancements:
-  - Proper error handling for bank operations
-  - Logging for question saving and bank creation
-  - Validation for question weights and points
-- Fixed critical issues:
-  - Corrected Prisma query structure for bank associations
-  - Fixed session result saving with composite key
-  - Resolved question display filtering bugs
-- Added comprehensive documentation:
-  - Updated schema documentation
-  - Added comments for new functionality
-  - Improved error messages
 
 ## Potential Enhancements
 - Add session history and analytics using session IDs

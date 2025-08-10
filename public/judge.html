@@ -16,6 +16,12 @@
       border: none;
       border-radius: 4px;
       cursor: pointer;
+      transition: all 0.2s;
+    }
+    .answer-btn:hover {
+      background: #d0d0d0;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     .answer-btn.selected {
       background: #4CAF50;
@@ -24,6 +30,15 @@
     .answer-btn:disabled {
       opacity: 0.6;
       cursor: not-allowed;
+    }
+    #submitFinalBtn:hover {
+      background: #3e8e41;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    #submitFinalBtn:active {
+      transform: translateY(0);
+      box-shadow: none;
     }
   </style>
 </head>
@@ -35,7 +50,7 @@
 
     <div id="question-box" style="display:none;">
       <div id="questions-container"></div>
-      <button id="submitFinalBtn" style="margin-top: 20px; padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 4px; display: none;">
+      <button id="submitFinalBtn" style="margin-top: 20px; padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 4px; display: none; cursor: pointer; transition: all 0.2s ease;">
         Submit Final Answers
       </button>
     </div>
@@ -78,11 +93,16 @@
       document.getElementById('submitFinalBtn').onclick = () => {
         const answers = [];
         container.querySelectorAll('.answer-btn.selected').forEach(btn => {
-          const questionIndex = parseInt(btn.closest('div').getAttribute('data-index'));
-          answers.push({
-            questionIndex,
-            answer: btn.innerText
-          });
+          const questionDiv = btn.closest('div[data-index]');
+          const questionIndex = questionDiv ? parseInt(questionDiv.getAttribute('data-index')) : null;
+          if (questionIndex !== null) {
+            answers.push({
+              questionIndex,
+              answer: btn.innerText
+            });
+          } else {
+            console.error('Could not find question index for answer:', btn.innerText);
+          }
         });
         // Get team ID from the current session data
         const teamId = data.teamId || 0; // Default to 0 if not found
