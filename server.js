@@ -170,6 +170,11 @@ io.on('connection', (socket) => {
         console.log('Bank created/updated:', bank);
       }
 
+      if (!currentSession) {
+        socket.emit('error-message', 'No active session. Cannot save questions.');
+        return;
+      }
+
       if (currentSession) {
         // Update session with total points
         await prisma.session.update({
@@ -183,6 +188,14 @@ io.on('connection', (socket) => {
         });
       }
 
+      // Validate all questions have required fields and sessionId will be set
+      for (const q of questions) {
+        if (!q.text || !q.choices || !q.correct || !q.section || !q.weight) {
+          socket.emit('error-message', 'Invalid question data. All fields are required.');
+          return;
+        }
+      }
+
       // Create new questions
       const createdQuestions = await prisma.$transaction(
         questions.map(q => prisma.question.create({
@@ -192,7 +205,7 @@ io.on('connection', (socket) => {
             correct: q.correct,
             section: q.section,
             weight: q.weight,
-            ...(currentSession && { session: { connect: { id: currentSession.id } }}),
+            session: { connect: { id: currentSession.id } },
             ...(bank && { 
               bank: { 
                 connect: { id: bank.id }
@@ -313,10 +326,36 @@ io.on('connection', (socket) => {
         // Save answer to database
             // Extract answer text if it's an object, otherwise use as-is
             const answerTextValue = typeof answerText === 'object' ? answerText.text : answerText;
+            // First verify the question exists and belongs to current session
+            const question = await prisma.question.findFirst({
+                where: { 
+                    id: questionIndex + 1,
+                    sessionId: currentSession.id 
+                }
+            });
+
+            if (!question) {
+                console.error(`Question with ID ${questionIndex + 1} not found in session ${currentSession.id}`);
+                return;
+            }
+
+            // Calculate points based on answer weight and question weight
+            let points = 0;
+            if (question && typeof answerText === 'object') {
+                const selectedOption = question.choices.find(opt => 
+                    opt.text === answerText.text
+                );
+                if (selectedOption) {
+                    // Calculate points based on option weight and question weight
+                    const maxOptionWeight = Math.max(...question.choices.map(o => o.weight));
+                    points = (selectedOption.weight / maxOptionWeight) * question.weight;
+                }
+            }
+
             const savedAnswer = await prisma.answer.create({
                 data: {
                     answer: answerTextValue,
-                    points: answerData.points || 0,
+                    points: points,
                     question: { connect: { id: questionIndex + 1 } },
                     team: { connect: { id: team.id } },
                     judge: { connect: { id: judge.id } },
@@ -357,38 +396,131 @@ io.on('connection', (socket) => {
       io.to('host').emit('answers-updated', answersByTeam);
     });
 
-  socket.on('submit-final-answers', async ({teamId, answers}) => {
-    const playerName = players[socket.id]?.name;
-    if (!playerName) {
-      socket.emit('error-message', 'Not authenticated');
-      return;
-    }
+    socket.on('submit-final-answers', async ({teamId, answers}) => {
+      const playerName = players[socket.id]?.name;
+      if (!playerName) {
+        socket.emit('error-message', 'Not authenticated');
+        return;
+      }
 
-    try {
-      const judge = await prisma.judge.findUnique({
-        where: { name: playerName }
-      });
+      try {
+        const judge = await prisma.judge.findUnique({
+          where: { name: playerName }
+        });
 
-      await prisma.finalAnswer.upsert({
-        where: {
-          sessionId_teamId_judgeId: {
+        // First save the final answers
+        await prisma.finalAnswer.upsert({
+          where: {
+            sessionId_teamId_judgeId: {
+              sessionId: currentSession.id,
+              teamId: parseInt(teamId),
+              judgeId: judge.id
+            }
+          },
+          create: {
             sessionId: currentSession.id,
             teamId: parseInt(teamId),
-            judgeId: judge.id
+            judgeId: judge.id,
+            answers: JSON.stringify(answers)
+          },
+          update: {
+            answers: JSON.stringify(answers)
           }
-        },
-        create: {
-          sessionId: currentSession.id,
-          teamId: parseInt(teamId),
-          judgeId: judge.id,
-          answers: JSON.stringify(answers)
-        },
-        update: {
-          answers: JSON.stringify(answers)
-        }
-      });
+        });
 
-      socket.emit('final-answers-submitted');
+        // Get all questions for this session
+        const questions = await prisma.question.findMany({
+          where: { sessionId: currentSession.id }
+        });
+
+        // Get all final answers for this team to calculate final score
+        const allFinalAnswers = await prisma.finalAnswer.findMany({
+          where: {
+            sessionId: currentSession.id,
+            teamId: parseInt(teamId)
+          }
+        });
+
+        // Calculate total points from all judges' answers
+        let totalPoints = 0;
+        allFinalAnswers.forEach(finalAnswer => {
+          const answers = JSON.parse(finalAnswer.answers);
+          answers.forEach(answer => {
+            const question = questions.find(q => q.id === answer.questionIndex + 1);
+            if (question && question.choices) {
+              const selectedOption = question.choices.find(opt => opt.text === answer.answer);
+              if (selectedOption && selectedOption.weight !== undefined) {
+                const maxOptionWeight = Math.max(...question.choices.map(o => o.weight || 0));
+                const questionWeight = question.weight || 1;
+                totalPoints += (selectedOption.weight / maxOptionWeight) * questionWeight;
+              }
+            }
+          });
+        });
+
+        // Normalize points based on session total points
+        if (currentSession.totalPoints) {
+          const maxPossibleScore = questions.reduce((sum, q) => {
+            const weight = q.weight || 1;
+            return sum + (weight * (q.choices?.length || 1));
+          }, 0);
+          
+          if (maxPossibleScore > 0) {
+            totalPoints = (totalPoints / maxPossibleScore) * currentSession.totalPoints;
+            totalPoints = Math.round(totalPoints * 100) / 100; // Round to 2 decimal places
+          }
+        }
+
+        // Get judge names first
+        const judgeNames = await Promise.all(
+          allFinalAnswers.map(async fa => {
+            const judge = await prisma.judge.findUnique({where: {id: fa.judgeId}});
+            return {
+              judgeName: judge?.name || 'Unknown',
+              answers: JSON.parse(fa.answers)
+            };
+          })
+        );
+
+        // Save final result
+        await prisma.sessionResult.upsert({
+          where: {
+            sessionId_teamId: {
+              sessionId: currentSession.id,
+              teamId: parseInt(teamId)
+            }
+          },
+          create: {
+            sessionId: currentSession.id,
+            teamId: parseInt(teamId),
+            totalPoints,
+            details: JSON.stringify({
+              answers: judgeNames
+            })
+          },
+          update: {
+            totalPoints,
+            details: JSON.stringify({
+              answers: judgeNames
+            })
+          }
+        });
+
+        // Update leaderboard
+        const results = await prisma.sessionResult.findMany({
+          where: { sessionId: currentSession.id },
+          include: { team: true }
+        });
+
+        const leaderboard = results
+          .map(r => ({
+            teamName: r.team.name,
+            totalPoints: r.totalPoints
+          }))
+          .sort((a, b) => b.totalPoints - a.totalPoints);
+
+        io.to('host').emit('leaderboard-updated', leaderboard);
+        socket.emit('final-answers-submitted');
     } catch (error) {
       console.error('Error saving final answers:', error);
       socket.emit('error-message', 'Failed to save final answers');
@@ -419,8 +551,24 @@ io.on('connection', (socket) => {
 
   async function saveTeamResult(sessionId, teamId, answers) {
     try {
-      // Calculate total points
-      const totalPoints = answers.reduce((sum, answer) => sum + (answer.points || 0), 0);
+      // Calculate total points from answers and normalize based on session total points
+      const session = await prisma.session.findUnique({
+        where: { id: sessionId }
+      });
+      
+      let totalPoints = answers.reduce((sum, answer) => sum + (answer.points || 0), 0);
+      
+      // If session has totalPoints defined, normalize the score
+      if (session?.totalPoints) {
+        const maxPossibleScore = answers.reduce((sum, answer) => {
+          const questionWeight = answer.question?.weight || 1;
+          return sum + questionWeight;
+        }, 0);
+        
+        if (maxPossibleScore > 0) {
+          totalPoints = (totalPoints / maxPossibleScore) * session.totalPoints;
+        }
+      }
       
       // Save result
       await prisma.sessionResult.upsert({
