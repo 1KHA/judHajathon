@@ -118,7 +118,7 @@
 
       questions.forEach((question, index) => {
         const questionDiv = document.createElement('div');
-        questionDiv.setAttribute('data-index', index);
+        questionDiv.setAttribute('data-index', question.id);
         questionDiv.style.marginBottom = '20px';
 
         const questionTitle = document.createElement('h2');
@@ -140,7 +140,7 @@
             btn.classList.add('selected');
             btn.disabled = true;
             socket.emit('submit-answer', { 
-              questionIndex: index, 
+              questionIndex: question.id, 
               answer: typeof choice === 'object' ? choice.text : choice 
             });
           };

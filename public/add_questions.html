@@ -108,11 +108,8 @@
                     text: '',
                     choices: [
                         { text: '', weight: 1 },
-                        { text: '', weight: 1 },
-                        { text: '', weight: 1 },
                         { text: '', weight: 1 }
-                    ],
-                    correct: 0
+                    ]
                 });
                 renderSections();
             }
@@ -165,24 +162,24 @@
                         ${question.choices.map((choice, cIndex) => `
                             <div style="display: flex; align-items: center; gap: 10px; margin: 5px 0;">
                                 <input type="text" placeholder="Choice ${cIndex + 1}" 
-                                       value="${choice.text || choice}" 
+                                       value="${typeof choice === 'object' && choice !== null ? (choice.text || '') : ''}" 
                                        onchange="updateQuestionChoice(${section.id}, ${qIndex}, ${cIndex}, this.value)"
                                        style="flex: 1;">
-                                <input type="number" min="0" step="0.1" value="${choice.weight || 1}" 
+                                <input type="number" min="0" step="0.1" value="${typeof choice === 'object' && choice !== null ? (choice.weight || 1) : 1}" 
                                        onchange="updateQuestionChoiceWeight(${section.id}, ${qIndex}, ${cIndex}, this.value)"
                                        style="width: 60px;" placeholder="Weight">
                             </div>
                         `).join('')}
-                        <div>
-                            Correct choice: 
-                            <select onchange="updateCorrectChoice(${section.id}, ${qIndex}, this.value)">
-                                ${question.choices.map((_, cIndex) => `
-                                    <option value="${cIndex}" ${question.correct === cIndex ? 'selected' : ''}>
-                                        Choice ${cIndex + 1}
-                                    </option>
-                                `).join('')}
-                            </select>
-                            <button onclick="removeQuestion(${section.id}, ${qIndex})">Remove</button>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+                            <div>
+                                <button type="button" onclick="addChoice(${section.id}, ${qIndex})" style="background: #2196F3;">Add Choice</button>
+                                ${question.choices.length > 1 ? 
+                                  `<button type="button" onclick="removeChoice(${section.id}, ${qIndex})" style="background: #f44336;">Remove Last Choice</button>` : 
+                                  ''}
+                            </div>
+                            <div>
+                                <button onclick="removeQuestion(${section.id}, ${qIndex})">Remove Question</button>
+                            </div>
                         </div>
                     `;
                     questionsContainer.appendChild(questionEl);
@@ -211,34 +208,57 @@
         function updateQuestionChoice(sectionId, questionIndex, choiceIndex, value) {
             const section = sections.find(s => s.id === sectionId);
             if (section) {
-                if (typeof section.questions[questionIndex].choices[choiceIndex] === 'object') {
-                    section.questions[questionIndex].choices[choiceIndex].text = value;
-                } else {
+                // Always ensure we have a proper choice object
+                if (!section.questions[questionIndex].choices[choiceIndex] || 
+                    typeof section.questions[questionIndex].choices[choiceIndex] !== 'object') {
                     section.questions[questionIndex].choices[choiceIndex] = {
-                        text: value,
+                        text: '',
                         weight: 1
                     };
                 }
+                // Update the text property
+                section.questions[questionIndex].choices[choiceIndex].text = value;
             }
         }
 
         function updateQuestionChoiceWeight(sectionId, questionIndex, choiceIndex, value) {
             const section = sections.find(s => s.id === sectionId);
             if (section) {
-                if (typeof section.questions[questionIndex].choices[choiceIndex] === 'object') {
-                    section.questions[questionIndex].choices[choiceIndex].weight = parseFloat(value) || 0;
-                } else {
+                // Always ensure we have a proper choice object
+                if (!section.questions[questionIndex].choices[choiceIndex] || 
+                    typeof section.questions[questionIndex].choices[choiceIndex] !== 'object') {
                     section.questions[questionIndex].choices[choiceIndex] = {
-                        text: section.questions[questionIndex].choices[choiceIndex],
-                        weight: parseFloat(value) || 0
+                        text: '',
+                        weight: 1
                     };
                 }
+                // Update the weight property
+                section.questions[questionIndex].choices[choiceIndex].weight = parseFloat(value) || 0;
             }
         }
 
-        function updateCorrectChoice(sectionId, questionIndex, value) {
+
+        function addChoice(sectionId, questionIndex) {
             const section = sections.find(s => s.id === sectionId);
-            if (section) section.questions[questionIndex].correct = parseInt(value);
+            if (section && section.questions[questionIndex]) {
+                section.questions[questionIndex].choices.push({
+                    text: '',
+                    weight: 1
+                });
+                renderSections();
+            }
+        }
+
+        function removeChoice(sectionId, questionIndex) {
+            const section = sections.find(s => s.id === sectionId);
+            if (section && section.questions[questionIndex]) {
+                const question = section.questions[questionIndex];
+                // Only remove if there's more than one choice
+                if (question.choices.length > 1) {
+                    question.choices.pop();
+                    renderSections();
+                }
+            }
         }
 
         function updatePointsDisplay() {
@@ -295,17 +315,50 @@
             }
 
             const questions = [];
-            sections.forEach(section => {
-                section.questions.forEach(question => {
+            let hasInvalid = false;
+            let errorMsg = '';
+
+            sections.forEach((section, sIdx) => {
+                section.questions.forEach((question, qIdx) => {
+                    // Validate question text
+                    if (!question.text || !question.text.trim()) {
+                        hasInvalid = true;
+                        errorMsg += `Section ${sIdx + 1}, Question ${qIdx + 1}: Missing question text.\n`;
+                        return;
+                    }
+                    // Validate choices array
+                    if (!Array.isArray(question.choices) || question.choices.length < 1) {
+                        hasInvalid = true;
+                        errorMsg += `Section ${sIdx + 1}, Question ${qIdx + 1}: Must have at least one choice.\n`;
+                        return;
+                    }
+                    // Validate each choice
+                    for (let cIdx = 0; cIdx < question.choices.length; cIdx++) {
+                        const choice = question.choices[cIdx];
+                        if (
+                            typeof choice !== 'object' ||
+                            typeof choice.text !== 'string' ||
+                            choice.text.trim() === '' ||
+                            typeof choice.weight === 'undefined'
+                        ) {
+                            hasInvalid = true;
+                            errorMsg += `Section ${sIdx + 1}, Question ${qIdx + 1}, Choice ${cIdx + 1}: Invalid choice (must have text and weight).\n`;
+                            return;
+                        }
+                    }
                     questions.push({
                         text: question.text,
                         choices: question.choices,
-                        correct: question.choices[question.correct].text,
                         section: section.name,
                         weight: section.weight
                     });
                 });
             });
+
+            if (hasInvalid || questions.length === 0) {
+                alert(errorMsg || 'Please ensure all questions have text and at least one choice with text and weight.');
+                return;
+            }
 
             const bankName = document.getElementById('bank-name').value.trim();
             socket.emit('save-questions', {
@@ -314,6 +367,16 @@
                 bankName: bankName || undefined
             });
         }
+
+        // Listen for questions saved event
+        socket.on('questions-saved', function(data) {
+            alert(`Success! ${data.questions.length} questions saved to bank.`);
+        });
+
+        // Listen for error messages
+        socket.on('error-message', function(message) {
+            alert(`Error: ${message}`);
+        });
 
         // Initialize with one section
         addSection();

@@ -74,6 +74,11 @@ This project is a simple real-time judging application inspired by Kahoot. It al
   - Questions can now be organized into named banks/collections
   - Host can select from available banks when sending questions
   - Questions can be saved to either sessions or banks
+- Fixed question ID linking issues:
+  - Resolved "Question with ID X not linked to session Y" errors
+  - Modified judge interface to use actual database question IDs instead of array indices
+  - Ensured consistent question ID handling between frontend and backend
+  - Improved reliability of answer submissions and session linking
 - Enhanced database schema:
   - Added QuestionBank model with @unique name constraint
   - Questions can belong to either sessions or banks

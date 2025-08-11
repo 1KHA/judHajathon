@@ -72,18 +72,26 @@
                                     <thead>
                                         <tr>
                                             <th>Question</th>
+                                            <th>Question Weight</th>
                                             <th>Judge</th>
                                             <th>Answer</th>
+                                            <th>Option Weight</th>
+                                            <th>Max Option Weight</th>
                                             <th>Points</th>
+                                            <th>Calculation</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         ${JSON.parse(result.details).answers.map(answer => `
                                             <tr>
                                                 <td>${answer.questionText || 'N/A'}</td>
+                                                <td>${answer.questionWeight || '1'}</td>
                                                 <td>${answer.judgeName || 'N/A'}</td>
                                                 <td>${answer.answer || 'N/A'}</td>
+                                                <td>${answer.optionWeight || '0'}</td>
+                                                <td>${answer.maxOptionWeight || '0'}</td>
                                                 <td>${answer.points || '0'}</td>
+                                                <td>(${answer.optionWeight || '0'} / ${answer.maxOptionWeight || '0'}) × ${answer.questionWeight || '1'} = ${answer.points || '0'}</td>
                                             </tr>
                                         `).join('')}
                                     </tbody>

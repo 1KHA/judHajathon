@@ -193,61 +193,74 @@ io.on('connection', (socket) => {
   socket.on('save-questions', async ({questions, totalPoints, bankName}) => {
     try {
       let bank;
-      if (bankName) {
-        // Create or update question bank
-        bank = await prisma.questionBank.upsert({
-          where: { name: bankName },
-          create: { name: bankName },
-          update: {}
-        });
-        console.log('Bank created/updated:', bank);
-      }
-
-      if (!currentSession) {
-        socket.emit('error-message', 'No active session. Cannot save questions.');
+      if (!bankName || !bankName.trim()) {
+        socket.emit('error-message', 'A question bank name is required. Please provide a bank name to save questions.');
         return;
       }
+      // Create or update question bank
+      bank = await prisma.questionBank.upsert({
+        where: { name: bankName },
+        create: { name: bankName },
+        update: {}
+      });
+      console.log('Bank created/updated:', bank);
 
+      // Only update session if one exists (not required for saving questions)
       if (currentSession) {
         // Update session with total points
         await prisma.session.update({
           where: { id: currentSession.id },
           data: { totalPoints: parseInt(totalPoints) }
         });
-
-        // Delete existing questions for this session
-        await prisma.question.deleteMany({
-          where: { sessionId: currentSession.id }
-        });
       }
 
-      // Validate all questions have required fields and sessionId will be set
-      for (const q of questions) {
-        if (!q.text || !q.choices || !q.correct || !q.section || !q.weight) {
-          socket.emit('error-message', 'Invalid question data. All fields are required.');
+      // Enhanced validation for questions and choices
+      for (const [i, q] of questions.entries()) {
+        if (!q.text || !q.choices || !q.section || typeof q.weight === 'undefined') {
+          socket.emit('error-message', `Invalid question data at index ${i}. All fields are required.`);
+          console.error('Invalid question data:', q);
           return;
         }
+        if (!Array.isArray(q.choices) || q.choices.length < 1) {
+          socket.emit('error-message', `Question at index ${i} must have at least one choice.`);
+          console.error('Invalid choices for question:', q);
+          return;
+        }
+        for (const [j, choice] of q.choices.entries()) {
+          if (
+            typeof choice !== 'object' ||
+            typeof choice.text !== 'string' ||
+            choice.text.trim() === '' ||
+            typeof choice.weight === 'undefined'
+          ) {
+            socket.emit('error-message', `Invalid choice at index ${j} for question ${i}. Each choice must have text and weight.`);
+            console.error('Invalid choice:', choice, 'in question:', q);
+            return;
+          }
+        }
+      }
+      // Log all questions to be created
+      console.log('Validated questions to be created:', questions);
+
+      // Create new questions, always using the upserted bank's ID if present
+      if (!questions.length) {
+        socket.emit('error-message', 'No questions to save.');
+        return;
       }
 
-      // Create new questions
       const createdQuestions = await prisma.$transaction(
         questions.map(q => prisma.question.create({
           data: {
             text: q.text,
             choices: q.choices,
-            correct: q.correct,
+            ...(q.correct ? { correct: q.correct } : {}),
             section: q.section,
             weight: q.weight,
-            session: { connect: { id: currentSession.id } },
-            ...(bank && { 
-              bank: { 
-                connect: { id: bank.id }
-              } 
-            })
+            ...(bank ? { bank: { connect: { id: bank.id } } } : {})
           }
         }))
       );
-      console.log('Questions created:', createdQuestions.length, 'in bank:', bank?.name);
+      console.log('Questions created:', createdQuestions.map(q => ({ id: q.id, text: q.text, bankId: q.bankId })));
 
       // Calculate points distribution
       const categories = createdQuestions.reduce((acc, q) => {
@@ -270,6 +283,19 @@ io.on('connection', (socket) => {
         pointsDistribution
       });
       console.log('Questions saved:', createdQuestions.length);
+
+      // Fetch and emit updated question banks with questions to host
+      const questionBanks = await prisma.questionBank.findMany({
+        include: {
+          questions: {
+            select: { id: true, text: true, section: true, weight: true }
+          }
+        }
+      });
+      // Broadcast updated question banks to all hosts
+      io.to('host').emit('init-host-data', {
+        questionBanks
+      });
     } catch (error) {
       console.error('Error saving questions:', error);
       socket.emit('error-message', 'Failed to save questions');
@@ -364,13 +390,13 @@ io.on('connection', (socket) => {
         const sessionQuestion = await prisma.sessionQuestion.findFirst({
           where: {
             sessionId: currentSession.id,
-            questionId: questionIndex + 1
+            questionId: questionIndex
           },
           include: { question: true }
         });
 
         if (!sessionQuestion) {
-          console.error(`Question with ID ${questionIndex + 1} not linked to session ${currentSession.id}`);
+          console.error(`Question with ID ${questionIndex} not linked to session ${currentSession.id}`);
           return;
         }
 
@@ -393,7 +419,7 @@ io.on('connection', (socket) => {
           data: {
             answer: answerTextValue,
             points: points,
-            question: { connect: { id: questionIndex + 1 } },
+            question: { connect: { id: questionIndex } },
             team: { connect: { id: team.id } },
             judge: { connect: { id: judge.id } },
             session: { connect: { id: currentSession.id } }
@@ -485,7 +511,7 @@ io.on('connection', (socket) => {
         allFinalAnswers.forEach(finalAnswer => {
           const answers = JSON.parse(finalAnswer.answers);
           answers.forEach(answer => {
-            const question = questions.find(q => q.id === answer.questionIndex + 1);
+            const question = questions.find(q => q.id === answer.questionIndex);
             if (question && question.choices) {
               const selectedOption = question.choices.find(opt => opt.text === answer.answer);
               if (selectedOption && selectedOption.weight !== undefined) {
@@ -510,16 +536,44 @@ io.on('connection', (socket) => {
           }
         }
 
-        // Get judge names first
-        const judgeNames = await Promise.all(
+        // Get judge names and process answers with detailed information
+        const judgeAnswers = await Promise.all(
           allFinalAnswers.map(async fa => {
             const judge = await prisma.judge.findUnique({where: {id: fa.judgeId}});
-            return {
-              judgeName: judge?.name || 'Unknown',
-              answers: JSON.parse(fa.answers)
-            };
+            const answers = JSON.parse(fa.answers);
+            
+            // Process each answer to include weights and calculation details
+            const processedAnswers = answers.map(answer => {
+              const question = questions.find(q => q.id === answer.questionIndex);
+              let optionWeight = 0;
+              let maxOptionWeight = 0;
+              let points = 0;
+              
+              if (question && question.choices) {
+                const selectedOption = question.choices.find(opt => opt.text === answer.answer);
+                optionWeight = selectedOption ? selectedOption.weight : 0;
+                maxOptionWeight = Math.max(...question.choices.map(o => o.weight || 0));
+                const questionWeight = question.weight || 1;
+                points = (optionWeight / maxOptionWeight) * questionWeight;
+              }
+              
+              return {
+                questionText: question?.text || 'Unknown Question',
+                questionWeight: question?.weight || 1,
+                judgeName: judge?.name || 'Unknown',
+                answer: answer.answer,
+                optionWeight: optionWeight,
+                maxOptionWeight: maxOptionWeight,
+                points: points
+              };
+            });
+            
+            return processedAnswers;
           })
         );
+        
+        // Flatten the array of arrays into a single array of answers
+        const allDetailedAnswers = judgeAnswers.flat();
 
         // Save final result
         await prisma.sessionResult.upsert({
@@ -534,13 +588,13 @@ io.on('connection', (socket) => {
             teamId: parseInt(teamId),
             totalPoints,
             details: JSON.stringify({
-              answers: judgeNames
+              answers: allDetailedAnswers
             })
           },
           update: {
             totalPoints,
             details: JSON.stringify({
-              answers: judgeNames
+              answers: allDetailedAnswers
             })
           }
         });
@@ -622,23 +676,53 @@ io.on('connection', (socket) => {
           teamId,
           totalPoints,
           details: JSON.stringify({
-            answers: answers.map(a => ({
-              questionText: a.question?.text,
-              judgeName: a.judge?.name,
-              answer: a.answer,
-              points: a.points
-            }))
+            answers: answers.map(a => {
+              // Find the selected option to get its weight
+              let optionWeight = 0;
+              let maxOptionWeight = 0;
+              if (a.question && a.question.choices) {
+                const choices = a.question.choices;
+                const selectedOption = choices.find(c => c.text === a.answer);
+                optionWeight = selectedOption ? selectedOption.weight : 0;
+                maxOptionWeight = Math.max(...choices.map(c => c.weight || 0));
+              }
+              
+              return {
+                questionText: a.question?.text,
+                questionWeight: a.question?.weight || 1,
+                judgeName: a.judge?.name,
+                answer: a.answer,
+                optionWeight: optionWeight,
+                maxOptionWeight: maxOptionWeight,
+                points: a.points
+              };
+            })
           })
         },
         update: {
           totalPoints,
           details: JSON.stringify({
-            answers: answers.map(a => ({
-              questionText: a.question?.text,
-              judgeName: a.judge?.name,
-              answer: a.answer,
-              points: a.points
-            }))
+            answers: answers.map(a => {
+              // Find the selected option to get its weight
+              let optionWeight = 0;
+              let maxOptionWeight = 0;
+              if (a.question && a.question.choices) {
+                const choices = a.question.choices;
+                const selectedOption = choices.find(c => c.text === a.answer);
+                optionWeight = selectedOption ? selectedOption.weight : 0;
+                maxOptionWeight = Math.max(...choices.map(c => c.weight || 0));
+              }
+              
+              return {
+                questionText: a.question?.text,
+                questionWeight: a.question?.weight || 1,
+                judgeName: a.judge?.name,
+                answer: a.answer,
+                optionWeight: optionWeight,
+                maxOptionWeight: maxOptionWeight,
+                points: a.points
+              };
+            })
           })
         }
       });

@@ -10,32 +10,7 @@ async function seedTeams() {
     'Team Echo'
   ];
 
-  const demoQuestions = [
-    {
-      text: 'q1',
-      choices: [
-        { text: 'a1', weight: 1 },
-        { text: 'a2', weight: 2 },
-        { text: 'a3', weight: 3 },
-        { text: 'a4', weight: 4 }
-      ],
-      correct: 'a2',
-      section: 'Section 1',
-      weight: 2
-    },
-    {
-      text: 'q2',
-      choices: [
-        { text: 'b1', weight: 1 },
-        { text: 'b2', weight: 2 },
-        { text: 'b3', weight: 3 },
-        { text: 'b4', weight: 4 }
-      ],
-      correct: 'b3',
-      section: 'Section 2',
-      weight: 3
-    }
-  ];
+  // No demo questions or banks will be seeded.
 
   try {
     console.log('Seeding demo teams and questions...');
@@ -50,21 +25,8 @@ async function seedTeams() {
       console.log(`Created team: ${teamName}`);
     }
 
-    // Create global questions (no session association)
-    for (const question of demoQuestions) {
-      await prisma.question.create({
-        data: {
-          text: question.text,
-          choices: question.choices,
-          correct: question.correct,
-          section: question.section,
-          weight: question.weight
-        }
-      });
-      console.log(`Created question: ${question.text}`);
-    }
-
-    console.log('Successfully seeded global demo teams and questions!');
+    // No question banks or questions are seeded. Only teams (if any) are created.
+    console.log('Successfully seeded demo teams! (No questions or banks)');
   } catch (error) {
     console.error('Error seeding teams and questions:', error);
   } finally {

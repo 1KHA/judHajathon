@@ -44,7 +44,7 @@ model Question {
   id        Int      @id @default(autoincrement())
   text      String
   choices   Json
-  correct   String
+  correct   String?
   section   String
   weight    Float    @default(1.0)
   sessionQuestions SessionQuestion[]
