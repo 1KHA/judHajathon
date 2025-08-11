@@ -40,32 +40,17 @@ async function seedTeams() {
   try {
     console.log('Seeding demo teams and questions...');
     
-    // First find or create a session
-    let session = await prisma.session.findUnique({
-      where: { sessionId: 'demo-session-123' }
-    });
-
-    if (!session) {
-      session = await prisma.session.create({
-        data: {
-          name: 'Demo Session',
-          sessionId: 'demo-session-123'
-        }
-      });
-    }
-
+    // Create global teams (no session association)
     for (const teamName of demoTeams) {
       await prisma.team.create({
         data: {
-          name: teamName,
-          session: {
-            connect: { id: session.id }
-          }
+          name: teamName
         }
       });
       console.log(`Created team: ${teamName}`);
     }
 
+    // Create global questions (no session association)
     for (const question of demoQuestions) {
       await prisma.question.create({
         data: {
@@ -73,16 +58,13 @@ async function seedTeams() {
           choices: question.choices,
           correct: question.correct,
           section: question.section,
-          weight: question.weight,
-          session: {
-            connect: { id: session.id }
-          }
+          weight: question.weight
         }
       });
       console.log(`Created question: ${question.text}`);
     }
 
-    console.log('Successfully seeded demo teams and questions!');
+    console.log('Successfully seeded global demo teams and questions!');
   } catch (error) {
     console.error('Error seeding teams and questions:', error);
   } finally {

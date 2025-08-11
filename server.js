@@ -66,23 +66,30 @@ io.on('connection', (socket) => {
     currentSession = await prisma.session.create({
       data: {
         name: `Session ${sessionId}`,
-        sessionId: sessionId,
-        teams: {
-          create: teamNames.map(name => ({ name }))
-        }
+        sessionId: sessionId
       }
     });
-    
-    // Run database migrations to apply schema changes
-    await prisma.$executeRaw`PRAGMA foreign_keys=OFF`;
-    await prisma.$executeRaw`PRAGMA foreign_keys=ON`;
-    
+
+    // Link selected teams to the session via SessionTeam
+    const allTeams = await prisma.team.findMany({
+      where: { name: { in: teamNames } }
+    });
+
+    for (const team of allTeams) {
+      await prisma.sessionTeam.create({
+        data: {
+          session: { connect: { id: currentSession.id } },
+          team: { connect: { id: team.id } }
+        }
+      });
+    }
+
     // Emit session created event with session ID
     socket.emit('session-created', { 
       sessionId,
       teams: teamNames 
     });
-    
+
     // Update in-memory state
     teams = teamNames;
     currentTeamIndex = 0;
@@ -98,16 +105,42 @@ io.on('connection', (socket) => {
       console.error('No active session');
       return;
     }
-    
+
     try {
-      // Get full question details from database
-      const questions = await prisma.question.findMany({
-        where: { id: { in: questionIds.map(q => parseInt(q.id)) } }
+      // Link selected questions to the session via SessionQuestion
+      const questionIdInts = questionIds.map(q => parseInt(q.id));
+      const allQuestions = await prisma.question.findMany({
+        where: { id: { in: questionIdInts } }
       });
-      
+
+      for (const question of allQuestions) {
+        // Check if already linked
+        const exists = await prisma.sessionQuestion.findFirst({
+          where: {
+            sessionId: currentSession.id,
+            questionId: question.id
+          }
+        });
+        if (!exists) {
+          await prisma.sessionQuestion.create({
+            data: {
+              session: { connect: { id: currentSession.id } },
+              question: { connect: { id: question.id } }
+            }
+          });
+        }
+      }
+
+      // Get all questions linked to this session
+      const sessionQuestions = await prisma.sessionQuestion.findMany({
+        where: { sessionId: currentSession.id },
+        include: { question: true }
+      });
+      const questions = sessionQuestions.map(sq => sq.question);
+
       console.log('Sending questions to judges:', questions);
       console.log('Current team:', teams[currentTeamIndex]);
-      
+
       // Find the team ID for the current team
       const team = await prisma.team.findFirst({
         where: { name: teams[currentTeamIndex] }
@@ -118,7 +151,7 @@ io.on('connection', (socket) => {
         currentTeam: teams[currentTeamIndex],
         teamId: team?.id || 0
       });
-      
+
       // Log session state
       console.log('Session state:', {
         currentSession,
@@ -324,44 +357,48 @@ io.on('connection', (socket) => {
 
       try {
         // Save answer to database
-            // Extract answer text if it's an object, otherwise use as-is
-            const answerTextValue = typeof answerText === 'object' ? answerText.text : answerText;
-            // First verify the question exists and belongs to current session
-            const question = await prisma.question.findFirst({
-                where: { 
-                    id: questionIndex + 1,
-                    sessionId: currentSession.id 
-                }
-            });
+        // Extract answer text if it's an object, otherwise use as-is
+        const answerTextValue = typeof answerText === 'object' ? answerText.text : answerText;
 
-            if (!question) {
-                console.error(`Question with ID ${questionIndex + 1} not found in session ${currentSession.id}`);
-                return;
-            }
+        // First verify the question is linked to the current session via SessionQuestion
+        const sessionQuestion = await prisma.sessionQuestion.findFirst({
+          where: {
+            sessionId: currentSession.id,
+            questionId: questionIndex + 1
+          },
+          include: { question: true }
+        });
 
-            // Calculate points based on answer weight and question weight
-            let points = 0;
-            if (question && typeof answerText === 'object') {
-                const selectedOption = question.choices.find(opt => 
-                    opt.text === answerText.text
-                );
-                if (selectedOption) {
-                    // Calculate points based on option weight and question weight
-                    const maxOptionWeight = Math.max(...question.choices.map(o => o.weight));
-                    points = (selectedOption.weight / maxOptionWeight) * question.weight;
-                }
-            }
+        if (!sessionQuestion) {
+          console.error(`Question with ID ${questionIndex + 1} not linked to session ${currentSession.id}`);
+          return;
+        }
 
-            const savedAnswer = await prisma.answer.create({
-                data: {
-                    answer: answerTextValue,
-                    points: points,
-                    question: { connect: { id: questionIndex + 1 } },
-                    team: { connect: { id: team.id } },
-                    judge: { connect: { id: judge.id } },
-                    session: { connect: { id: currentSession.id } }
-                }
-            });
+        const question = sessionQuestion.question;
+
+        // Calculate points based on answer weight and question weight
+        let points = 0;
+        if (question && typeof answerText === 'object') {
+          const selectedOption = question.choices.find(opt => 
+            opt.text === answerText.text
+          );
+          if (selectedOption) {
+            // Calculate points based on option weight and question weight
+            const maxOptionWeight = Math.max(...question.choices.map(o => o.weight));
+            points = (selectedOption.weight / maxOptionWeight) * question.weight;
+          }
+        }
+
+        const savedAnswer = await prisma.answer.create({
+          data: {
+            answer: answerTextValue,
+            points: points,
+            question: { connect: { id: questionIndex + 1 } },
+            team: { connect: { id: team.id } },
+            judge: { connect: { id: judge.id } },
+            session: { connect: { id: currentSession.id } }
+          }
+        });
         console.log('Answer saved:', savedAnswer);
 
         // Get all answers for this team in this session
@@ -428,10 +465,12 @@ io.on('connection', (socket) => {
           }
         });
 
-        // Get all questions for this session
-        const questions = await prisma.question.findMany({
-          where: { sessionId: currentSession.id }
+        // Get all questions for this session via SessionQuestion join table
+        const sessionQuestions = await prisma.sessionQuestion.findMany({
+          where: { sessionId: currentSession.id },
+          include: { question: true }
         });
+        const questions = sessionQuestions.map(sq => sq.question);
 
         // Get all final answers for this team to calculate final score
         const allFinalAnswers = await prisma.finalAnswer.findMany({

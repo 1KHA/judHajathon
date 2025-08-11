@@ -15,8 +15,8 @@ model Session {
   name      String
   sessionId String   @unique
   createdAt DateTime @default(now())
-  teams     Team[]
-  questions Question[]
+  sessionTeams SessionTeam[] @relation("SessionToSessionTeam")
+  sessionQuestions SessionQuestion[] @relation("SessionToSessionQuestion")
   answers   Answer[]
   results   SessionResult[]
   finalAnswers FinalAnswer[]
@@ -26,8 +26,7 @@ model Session {
 model Team {
   id        Int      @id @default(autoincrement())
   name      String
-  session   Session  @relation(fields: [sessionId], references: [id])
-  sessionId Int
+  sessionTeams SessionTeam[]
   answers   Answer[]
   results   SessionResult[]
   finalAnswers FinalAnswer[]
@@ -48,12 +47,33 @@ model Question {
   correct   String
   section   String
   weight    Float    @default(1.0)
-  session   Session? @relation(fields: [sessionId], references: [id])
-  sessionId Int?
+  sessionQuestions SessionQuestion[]
   bank      QuestionBank? @relation(fields: [bankId], references: [id])
   bankId    Int?
   answers   Answer[]
   createdAt DateTime @default(now())
+}
+
+model SessionTeam {
+  id        Int      @id @default(autoincrement())
+  session   Session  @relation("SessionToSessionTeam", fields: [sessionId], references: [id])
+  sessionId Int
+  team      Team     @relation(fields: [teamId], references: [id])
+  teamId    Int
+  createdAt DateTime @default(now())
+
+  @@unique([sessionId, teamId])
+}
+
+model SessionQuestion {
+  id        Int      @id @default(autoincrement())
+  session   Session  @relation("SessionToSessionQuestion", fields: [sessionId], references: [id])
+  sessionId Int
+  question  Question @relation(fields: [questionId], references: [id])
+  questionId Int
+  createdAt DateTime @default(now())
+
+  @@unique([sessionId, questionId])
 }
 
 model Judge {
