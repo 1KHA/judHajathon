@@ -176,6 +176,15 @@ io.on('connection', (socket) => {
         where: { name: teams[currentTeamIndex] }
       });
 
+      // Store current questions and team in session for judge rejoin
+      await prisma.session.update({
+        where: { id: currentSession.id },
+        data: {
+          currentQuestions: JSON.stringify(allQuestions),
+          currentTeamId: team?.id || null
+        }
+      });
+
       io.to('judge').emit('question', {
         questions,
         currentTeam: teams[currentTeamIndex],
@@ -358,6 +367,23 @@ io.on('connection', (socket) => {
       // Update participant lists
       io.to('judge').emit('participant-list', Object.values(players));
       io.to('host').emit('judge-list', Object.values(players));
+
+      // If there are current questions, send them to the rejoining judge
+      if (session.currentQuestions && session.currentTeamId) {
+        const currentQuestions = JSON.parse(session.currentQuestions);
+        const currentTeam = await prisma.team.findFirst({
+          where: { id: session.currentTeamId }
+        });
+
+        if (currentQuestions.length > 0 && currentTeam) {
+          console.log(`Sending current questions to rejoining judge: ${judgeName}`);
+          socket.emit('question', {
+            questions: currentQuestions,
+            currentTeam: currentTeam.name,
+            teamId: currentTeam.id
+          });
+        }
+      }
 
       console.log(`Judge ${judgeName} rejoined session: ${session.sessionId}`);
     } catch (error) {

@@ -18,6 +18,8 @@ model Session {
   currentTeamIndex Int? @default(0)
   teams     Json?
   answersByTeam Json?
+  currentQuestions Json?
+  currentTeamId Int?
   createdAt DateTime @default(now())
   sessionTeams SessionTeam[] @relation("SessionToSessionTeam")
   sessionQuestions SessionQuestion[] @relation("SessionToSessionQuestion")
