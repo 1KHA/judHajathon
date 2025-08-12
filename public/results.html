@@ -46,6 +46,19 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
+        // Function to calculate total points as the sum of individual answer points
+        function calculateTotalPoints(answers) {
+            if (!answers || !Array.isArray(answers)) return 0;
+            
+            // Sum up all the points from the answers
+            const total = answers.reduce((sum, answer) => {
+                return sum + (parseFloat(answer.points) || 0);
+            }, 0);
+            
+            // Round to 2 decimal places
+            return Math.round(total * 100) / 100;
+        }
+        
         const socket = io();
         
         // Fetch all session results when page loads
@@ -67,7 +80,7 @@
                         ${session.results.map(result => `
                             <div class="team-result">
                                 <h3>Team: ${result.team.name}</h3>
-                                <p>Total Points: ${result.totalPoints}</p>
+                                <p>Total Points: ${calculateTotalPoints(JSON.parse(result.details).answers)}</p>
                                 <table>
                                     <thead>
                                         <tr>

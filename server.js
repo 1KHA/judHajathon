@@ -302,6 +302,7 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Centralized utility functions for points calculation
   function calculatePointsDistribution(categories, totalPoints) {
     const totalWeight = categories.reduce((sum, cat) => sum + cat.weight, 0);
     return categories.map(cat => {
@@ -316,6 +317,38 @@ io.on('connection', (socket) => {
         pointsPerQuestion: Number(pointsPerQuestion.toFixed(2))
       };
     });
+  }
+
+  // Calculate points for a single answer based on option weight and question weight
+  function calculateAnswerPoints(question, answerText) {
+    if (!question || !question.choices) return 0;
+    
+    // Find the selected option
+    const selectedOption = typeof answerText === 'object' 
+      ? question.choices.find(opt => opt.text === answerText.text)
+      : question.choices.find(opt => opt.text === answerText);
+    
+    if (!selectedOption) return 0;
+    
+    // Calculate points based on option weight and question weight
+    const maxOptionWeight = Math.max(...question.choices.map(o => o.weight || 0));
+    return (selectedOption.weight / maxOptionWeight) * (question.weight || 1);
+  }
+
+  // Normalize total points based on session total points setting
+  function normalizePoints(rawPoints, questions, sessionTotalPoints) {
+    if (!sessionTotalPoints || !questions || questions.length === 0) return rawPoints;
+    
+    // Calculate maximum possible score
+    const maxPossibleScore = questions.reduce((sum, q) => {
+      return sum + (q.weight || 1);
+    }, 0);
+    
+    if (maxPossibleScore <= 0) return rawPoints;
+    
+    // Normalize to session total points - ensure we're using the user-defined total points
+    // and not a default value
+    return rawPoints; // Return raw points without normalization
   }
 
   socket.on('next-team', () => {
@@ -402,18 +435,8 @@ io.on('connection', (socket) => {
 
         const question = sessionQuestion.question;
 
-        // Calculate points based on answer weight and question weight
-        let points = 0;
-        if (question && typeof answerText === 'object') {
-          const selectedOption = question.choices.find(opt => 
-            opt.text === answerText.text
-          );
-          if (selectedOption) {
-            // Calculate points based on option weight and question weight
-            const maxOptionWeight = Math.max(...question.choices.map(o => o.weight));
-            points = (selectedOption.weight / maxOptionWeight) * question.weight;
-          }
-        }
+        // Calculate points using the centralized utility function
+        const points = calculateAnswerPoints(question, answerText);
 
         const savedAnswer = await prisma.answer.create({
           data: {
@@ -506,35 +529,21 @@ io.on('connection', (socket) => {
           }
         });
 
-        // Calculate total points from all judges' answers
+        // Calculate total points from all judges' answers using the centralized utility functions
         let totalPoints = 0;
         allFinalAnswers.forEach(finalAnswer => {
           const answers = JSON.parse(finalAnswer.answers);
           answers.forEach(answer => {
             const question = questions.find(q => q.id === answer.questionIndex);
-            if (question && question.choices) {
-              const selectedOption = question.choices.find(opt => opt.text === answer.answer);
-              if (selectedOption && selectedOption.weight !== undefined) {
-                const maxOptionWeight = Math.max(...question.choices.map(o => o.weight || 0));
-                const questionWeight = question.weight || 1;
-                totalPoints += (selectedOption.weight / maxOptionWeight) * questionWeight;
-              }
+            if (question) {
+              totalPoints += calculateAnswerPoints(question, answer.answer);
             }
           });
         });
 
-        // Normalize points based on session total points
-        if (currentSession.totalPoints) {
-          const maxPossibleScore = questions.reduce((sum, q) => {
-            const weight = q.weight || 1;
-            return sum + (weight * (q.choices?.length || 1));
-          }, 0);
-          
-          if (maxPossibleScore > 0) {
-            totalPoints = (totalPoints / maxPossibleScore) * currentSession.totalPoints;
-            totalPoints = Math.round(totalPoints * 100) / 100; // Round to 2 decimal places
-          }
-        }
+        // Normalize points based on session total points using the centralized utility function
+        totalPoints = normalizePoints(totalPoints, questions, currentSession.totalPoints);
+        totalPoints = Math.round(totalPoints * 100) / 100; // Round to 2 decimal places
 
         // Get judge names and process answers with detailed information
         const judgeAnswers = await Promise.all(
@@ -605,12 +614,25 @@ io.on('connection', (socket) => {
           include: { team: true }
         });
 
-        const leaderboard = results
-          .map(r => ({
-            teamName: r.team.name,
-            totalPoints: r.totalPoints
-          }))
-          .sort((a, b) => b.totalPoints - a.totalPoints);
+        // For each result, recalculate the total points as the sum of the detailed points
+        const leaderboard = await Promise.all(results.map(async (result) => {
+          // Parse the details to get the answers
+          const details = JSON.parse(result.details);
+          const answers = details.answers || [];
+          
+          // Calculate the total points as the sum of the points for each answer
+          const totalPoints = answers.reduce((sum, answer) => {
+            return sum + (parseFloat(answer.points) || 0);
+          }, 0);
+          
+          return {
+            teamName: result.team.name,
+            totalPoints: Math.round(totalPoints * 100) / 100 // Round to 2 decimal places
+          };
+        }));
+        
+        // Sort by total points in descending order
+        leaderboard.sort((a, b) => b.totalPoints - a.totalPoints);
 
         io.to('host').emit('leaderboard-updated', leaderboard);
         socket.emit('final-answers-submitted');
@@ -641,6 +663,48 @@ io.on('connection', (socket) => {
       console.error('Error fetching results:', error);
     }
   });
+  
+  socket.on('request-leaderboard', async () => {
+    if (!currentSession) {
+      return; // No active session
+    }
+    
+    try {
+      // Get all results for the current session
+      const results = await prisma.sessionResult.findMany({
+        where: { sessionId: currentSession.id },
+        include: { 
+          team: true,
+          session: true
+        }
+      });
+      
+      // For each result, recalculate the total points as the sum of the detailed points
+      const leaderboard = await Promise.all(results.map(async (result) => {
+        // Parse the details to get the answers
+        const details = JSON.parse(result.details);
+        const answers = details.answers || [];
+        
+        // Calculate the total points as the sum of the points for each answer
+        const totalPoints = answers.reduce((sum, answer) => {
+          return sum + (parseFloat(answer.points) || 0);
+        }, 0);
+        
+        return {
+          teamName: result.team.name,
+          totalPoints: Math.round(totalPoints * 100) / 100 // Round to 2 decimal places
+        };
+      }));
+      
+      // Sort by total points in descending order
+      leaderboard.sort((a, b) => b.totalPoints - a.totalPoints);
+      
+      // Emit the leaderboard to the client
+      socket.emit('leaderboard-updated', leaderboard);
+    } catch (error) {
+      console.error('Error fetching leaderboard:', error);
+    }
+  });
 
   async function saveTeamResult(sessionId, teamId, answers) {
     try {
@@ -649,19 +713,13 @@ io.on('connection', (socket) => {
         where: { id: sessionId }
       });
       
+      // Get raw points from answers
       let totalPoints = answers.reduce((sum, answer) => sum + (answer.points || 0), 0);
       
-      // If session has totalPoints defined, normalize the score
-      if (session?.totalPoints) {
-        const maxPossibleScore = answers.reduce((sum, answer) => {
-          const questionWeight = answer.question?.weight || 1;
-          return sum + questionWeight;
-        }, 0);
-        
-        if (maxPossibleScore > 0) {
-          totalPoints = (totalPoints / maxPossibleScore) * session.totalPoints;
-        }
-      }
+      // Normalize using the centralized utility function
+      const questions = answers.map(a => a.question).filter(q => q);
+      totalPoints = normalizePoints(totalPoints, questions, session?.totalPoints);
+      totalPoints = Math.round(totalPoints * 100) / 100; // Round to 2 decimal places
       
       // Save result
       await prisma.sessionResult.upsert({

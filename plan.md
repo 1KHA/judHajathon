@@ -88,6 +88,12 @@ This project is a simple real-time judging application inspired by Kahoot. It al
   - Total points can be customized per session
   - Points distribution calculated automatically
   - Added question sections with weights
+- Unified points calculation system:
+  - Consistent calculation between results page and leaderboard
+  - Points now calculated as the direct sum of individual answer points
+  - Removed normalization to ensure points directly reflect question and option weights
+  - Added detailed calculation display in results page
+  - Updated documentation in point.md and formula.md files
 
 ## Potential Enhancements
 - Add session history and analytics using session IDs

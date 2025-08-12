@@ -275,6 +275,12 @@
         </tr>
       `).join('');
     });
+    
+    // Request updated leaderboard data when the page loads
+    socket.on('connect', () => {
+      // This will trigger a leaderboard-updated event if there's an active session
+      socket.emit('request-leaderboard');
+    });
   </script>
 </body>
 </html>
