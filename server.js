@@ -19,6 +19,7 @@ let teams = [];
 let currentTeamIndex = 0;
 let answersByTeam = {};
 let currentSession = null;
+let sessions = new Map(); // Track multiple sessions by sessionId
 
 io.on('connection', (socket) => {
   console.log('New connection:', socket.id);
@@ -31,19 +32,33 @@ io.on('connection', (socket) => {
 
     if (pin === judgePIN) {
       try {
-        // Create or find judge in database
+        // Generate judge token
+        const judgeToken = uuidv4();
+        
+        // Create or find judge in database and update with token and session
         const judge = await prisma.judge.upsert({
           where: { name },
-          create: { name },
-          update: {}
+          create: { 
+            name,
+            judgeToken,
+            sessionId: currentSession?.id || null
+          },
+          update: { 
+            judgeToken,
+            sessionId: currentSession?.id || null
+          }
         });
         
         players[socket.id] = { name, score: 0 };
         socket.join('judge');
-        socket.emit('joined-success', name);
+        socket.emit('joined-success', { 
+          name, 
+          judgeToken,
+          sessionId: currentSession?.sessionId || null
+        });
         io.to('judge').emit('participant-list', Object.values(players));
         io.to('host').emit('judge-list', Object.values(players));
-        console.log(`Judge created: ${name} (ID: ${judge.id})`);
+        console.log(`Judge created: ${name} (ID: ${judge.id}) with token`);
       } catch (error) {
         console.error('Error creating judge:', error);
         socket.emit('error-message', 'Failed to join session');
@@ -61,12 +76,18 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // Create new session with unique ID
+    // Create new session with unique ID and host token
     const sessionId = uuidv4();
+    const hostToken = uuidv4();
+    
     currentSession = await prisma.session.create({
       data: {
         name: `Session ${sessionId}`,
-        sessionId: sessionId
+        sessionId: sessionId,
+        hostToken: hostToken,
+        currentTeamIndex: 0,
+        teams: JSON.stringify(teamNames),
+        answersByTeam: JSON.stringify({})
       }
     });
 
@@ -84,9 +105,18 @@ io.on('connection', (socket) => {
       });
     }
 
-    // Emit session created event with session ID
+    // Store session in sessions map
+    sessions.set(sessionId, {
+      session: currentSession,
+      teams: teamNames,
+      currentTeamIndex: 0,
+      answersByTeam: {}
+    });
+
+    // Emit session created event with session ID and host token
     socket.emit('session-created', { 
       sessionId,
+      hostToken,
       teams: teamNames 
     });
 
@@ -188,6 +218,152 @@ io.on('connection', (socket) => {
       questionBanks,
       sections: [...new Set(questions.map(q => q.section))]
     });
+  });
+
+  // Host rejoin functionality
+  socket.on('rejoin-host', async ({ sessionId, hostToken }) => {
+    try {
+      // Validate token and session
+      const session = await prisma.session.findFirst({
+        where: {
+          sessionId: sessionId,
+          hostToken: hostToken
+        },
+        include: {
+          sessionTeams: {
+            include: { team: true }
+          },
+          sessionQuestions: {
+            include: { question: true }
+          }
+        }
+      });
+
+      if (!session) {
+        socket.emit('rejoin-failed', 'Invalid session or token');
+        return;
+      }
+
+      // Restore session state
+      currentSession = session;
+      teams = session.teams ? JSON.parse(session.teams) : session.sessionTeams.map(st => st.team.name);
+      currentTeamIndex = session.currentTeamIndex || 0;
+      answersByTeam = session.answersByTeam ? JSON.parse(session.answersByTeam) : {};
+      
+      // Store session in sessions map
+      sessions.set(sessionId, {
+        session,
+        teams,
+        currentTeamIndex,
+        answersByTeam
+      });
+
+      socket.join('host');
+
+      // Get all available teams, questions and question banks for the UI
+      const allTeams = await prisma.team.findMany({
+        distinct: ['name'],
+        select: { name: true }
+      });
+      const allQuestions = await prisma.question.findMany({
+        distinct: ['text'],
+        select: { id: true, text: true, section: true, weight: true }
+      });
+      const questionBanks = await prisma.questionBank.findMany({
+        include: {
+          questions: {
+            select: { id: true, text: true, section: true, weight: true }
+          }
+        }
+      });
+
+      // Emit full host data to restore UI
+      socket.emit('init-host-data', { 
+        teams: allTeams.map(t => t.name),
+        questions: allQuestions,
+        questionBanks,
+        sections: [...new Set(allQuestions.map(q => q.section))]
+      });
+
+      // Emit rejoin success with session state
+      socket.emit('host-rejoined', {
+        sessionId: session.sessionId,
+        teams,
+        currentTeam: teams[currentTeamIndex],
+        currentTeamIndex
+      });
+
+      // Restore teams selection in UI
+      socket.emit('teams-set', teams);
+      
+      // Restore current team
+      socket.emit('team-changed', teams[currentTeamIndex]);
+
+      // Restore answers if any
+      if (Object.keys(answersByTeam).length > 0) {
+        socket.emit('answers-updated', answersByTeam);
+      }
+
+      console.log(`Host rejoined session: ${sessionId}`);
+    } catch (error) {
+      console.error('Error rejoining host:', error);
+      socket.emit('rejoin-failed', 'Failed to rejoin session');
+    }
+  });
+
+  // Judge rejoin functionality
+  socket.on('rejoin-judge', async ({ sessionId, judgeName, judgeToken }) => {
+    try {
+      console.log(`Judge rejoin attempt: name=${judgeName}, sessionId=${sessionId}, token=${judgeToken}`);
+      
+      // First find the session by sessionId (UUID string)
+      const session = await prisma.session.findFirst({
+        where: { sessionId: sessionId }
+      });
+
+      if (!session) {
+        console.log(`Session not found for sessionId: ${sessionId}`);
+        socket.emit('rejoin-failed', 'Session not found');
+        return;
+      }
+
+      console.log(`Found session: ${session.id} (${session.sessionId})`);
+
+      // Validate token and judge using the session's database ID
+      const judge = await prisma.judge.findFirst({
+        where: {
+          name: judgeName,
+          judgeToken: judgeToken,
+          sessionId: session.id
+        }
+      });
+
+      if (!judge) {
+        console.log(`Judge not found: name=${judgeName}, token=${judgeToken}, sessionId=${session.id}`);
+        socket.emit('rejoin-failed', 'Invalid judge token or session');
+        return;
+      }
+
+      console.log(`Found judge: ${judge.id} (${judge.name})`);
+
+      // Restore player state
+      players[socket.id] = { name: judgeName, score: 0 };
+      socket.join('judge');
+      
+      socket.emit('judge-rejoined', {
+        name: judgeName,
+        sessionId: session.sessionId
+      });
+
+      // Update participant lists
+      io.to('judge').emit('participant-list', Object.values(players));
+      io.to('host').emit('judge-list', Object.values(players));
+
+      console.log(`Judge ${judgeName} rejoined session: ${session.sessionId}`);
+    } catch (error) {
+      console.error('Error rejoining judge:', error);
+      socket.emit('rejoin-failed', 'Failed to rejoin session');
+    }
   });
 
   socket.on('save-questions', async ({questions, totalPoints, bankName}) => {
@@ -351,16 +527,40 @@ io.on('connection', (socket) => {
     return rawPoints; // Return raw points without normalization
   }
 
-  socket.on('next-team', () => {
+  socket.on('next-team', async () => {
     if (currentTeamIndex < teams.length - 1) {
       currentTeamIndex++;
+      
+      // Update session state in database
+      if (currentSession) {
+        await prisma.session.update({
+          where: { id: currentSession.id },
+          data: { 
+            currentTeamIndex,
+            answersByTeam: JSON.stringify(answersByTeam)
+          }
+        });
+      }
+      
       io.to('host').emit('team-changed', teams[currentTeamIndex]);
     }
   });
 
-  socket.on('previous-team', () => {
+  socket.on('previous-team', async () => {
     if (currentTeamIndex > 0) {
       currentTeamIndex--;
+      
+      // Update session state in database
+      if (currentSession) {
+        await prisma.session.update({
+          where: { id: currentSession.id },
+          data: { 
+            currentTeamIndex,
+            answersByTeam: JSON.stringify(answersByTeam)
+          }
+        });
+      }
+      
       io.to('host').emit('team-changed', teams[currentTeamIndex]);
     }
   });
@@ -376,8 +576,51 @@ io.on('connection', (socket) => {
     console.log(`Session started with ID: ${currentSession.sessionId}`);
   });
 
-  socket.on('end-session', () => {
-    io.to('judge').emit('session-ended');
+  socket.on('end-session', async () => {
+    if (!currentSession) {
+      socket.emit('error-message', 'No active session to end');
+      return;
+    }
+
+    try {
+      // Mark session as ended by clearing the host token
+      await prisma.session.update({
+        where: { id: currentSession.id },
+        data: { 
+          hostToken: null // Invalidate the host token
+        }
+      });
+
+      // Clear all judge tokens for this session
+      await prisma.judge.updateMany({
+        where: { sessionId: currentSession.id },
+        data: { 
+          judgeToken: null,
+          sessionId: null
+        }
+      });
+
+      // Remove from sessions map
+      if (currentSession.sessionId) {
+        sessions.delete(currentSession.sessionId);
+      }
+
+      // Clear in-memory state
+      currentSession = null;
+      teams = [];
+      currentTeamIndex = 0;
+      answersByTeam = {};
+      players = {};
+
+      // Notify all clients
+      io.to('judge').emit('session-ended');
+      io.to('host').emit('session-ended');
+      
+      console.log('Session ended and cleaned up');
+    } catch (error) {
+      console.error('Error ending session:', error);
+      socket.emit('error-message', 'Failed to end session');
+    }
   });
 
     socket.on('submit-answer', async (answerData) => {

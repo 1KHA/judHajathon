@@ -63,19 +63,95 @@
   <script>
     const socket = io();
     
+    // Check for existing session on page load
+    const savedSessionId = localStorage.getItem('judgeSessionId');
+    const savedJudgeName = localStorage.getItem('judgeName');
+    const savedJudgeToken = localStorage.getItem('judgeToken');
+
+    if (savedSessionId && savedJudgeName && savedJudgeToken) {
+      // Attempt to rejoin existing session
+      socket.emit('rejoin-judge', { 
+        sessionId: savedSessionId, 
+        judgeName: savedJudgeName,
+        judgeToken: savedJudgeToken 
+      });
+      
+      // Hide join form and show question box
+      document.getElementById('name').style.display = 'none';
+      document.getElementById('question-box').style.display = 'block';
+    }
+    
     socket.on('session-started', (sessionId) => {
       document.getElementById('sessionId').textContent = sessionId;
     });
 
     function joinGame() {
       const name = document.getElementById('name').value;
+      if (!name || name.trim() === '') {
+        alert('Please enter your name');
+        return;
+      }
       socket.emit('join-judging', '1234', name);
     }
 
-    socket.on('joined-success', (name) => {
+    socket.on('joined-success', (data) => {
+      const name = typeof data === 'string' ? data : data.name;
+      const judgeToken = typeof data === 'object' ? data.judgeToken : null;
+      const sessionId = typeof data === 'object' ? data.sessionId : null;
+      
+      // Store judge info in localStorage
+      if (judgeToken && sessionId) {
+        localStorage.setItem('judgeSessionId', sessionId);
+        localStorage.setItem('judgeName', name);
+        localStorage.setItem('judgeToken', judgeToken);
+      }
+      
       document.getElementById('name').style.display = 'none';
       document.getElementById('question-box').style.display = 'block';
       alert(`Welcome ${name} to the Judging Session`);
+    });
+
+    // Handle successful judge rejoin
+    socket.on('judge-rejoined', (data) => {
+      document.getElementById('sessionId').textContent = data.sessionId;
+      console.log('Judge successfully rejoined session:', data.sessionId);
+      alert(`Rejoined session: ${data.sessionId} as ${data.name}`);
+    });
+
+    // Handle rejoin failure
+    socket.on('rejoin-failed', (message) => {
+      console.log('Rejoin failed:', message);
+      // Clear invalid tokens
+      localStorage.removeItem('judgeSessionId');
+      localStorage.removeItem('judgeName');
+      localStorage.removeItem('judgeToken');
+      
+      // Show join form
+      document.getElementById('name').style.display = 'block';
+      document.getElementById('question-box').style.display = 'none';
+      alert('Previous session expired. Please join again.');
+    });
+
+    // Handle session ended
+    socket.on('session-ended', () => {
+      // Clear session data from localStorage
+      localStorage.removeItem('judgeSessionId');
+      localStorage.removeItem('judgeName');
+      localStorage.removeItem('judgeToken');
+      
+      // Reset UI state
+      document.getElementById('name').style.display = 'block';
+      document.getElementById('question-box').style.display = 'none';
+      document.getElementById('currentTeam').textContent = '';
+      document.getElementById('questions-container').innerHTML = '';
+      document.getElementById('submitFinalBtn').style.display = 'none';
+      document.getElementById('sessionId').textContent = 'Not started';
+      
+      // Clear name input
+      document.getElementById('name').value = '';
+      
+      alert('The judging session has ended. Please join a new session.');
+      console.log('Session ended, localStorage and UI cleared');
     });
 
     socket.on('question', (data) => {
@@ -152,11 +228,6 @@
     });
 
     socket.on('error-message', msg => alert(`Judging Error: ${msg}`));
-    socket.on('session-ended', () => {
-      alert('The judging session has ended');
-      document.getElementById('question-box').style.display = 'none';
-      document.getElementById('currentTeam').textContent = 'Session ended';
-    });
   </script>
 </body>
 </html>

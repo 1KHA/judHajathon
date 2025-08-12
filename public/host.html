@@ -80,9 +80,23 @@
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io();
-    socket.emit('join-host');
     let teams = [];
     let currentTeam = 'None';
+
+    // Check for existing session on page load
+    const savedSessionId = localStorage.getItem('hostSessionId');
+    const savedHostToken = localStorage.getItem('hostToken');
+
+    if (savedSessionId && savedHostToken) {
+      // Attempt to rejoin existing session
+      socket.emit('rejoin-host', { 
+        sessionId: savedSessionId, 
+        hostToken: savedHostToken 
+      });
+    } else {
+      // Join as new host
+      socket.emit('join-host');
+    }
 
     function addTeam() {
       const teamName = document.getElementById('teamInput').value;
@@ -177,6 +191,63 @@
     socket.on('session-started', (sessionId) => {
       document.getElementById('sessionId').textContent = sessionId;
       alert(`Session started with ID: ${sessionId}`);
+    });
+
+    // Handle session creation with token storage
+    socket.on('session-created', (data) => {
+      // Store session info in localStorage
+      localStorage.setItem('hostSessionId', data.sessionId);
+      localStorage.setItem('hostToken', data.hostToken);
+      
+      document.getElementById('sessionId').textContent = data.sessionId;
+      console.log('Session created and stored:', data.sessionId);
+    });
+
+    // Handle successful host rejoin
+    socket.on('host-rejoined', (data) => {
+      teams = data.teams;
+      currentTeam = data.currentTeam;
+      document.getElementById('currentTeam').textContent = currentTeam;
+      document.getElementById('sessionId').textContent = data.sessionId;
+      
+      console.log('Host successfully rejoined session:', data.sessionId);
+      alert(`Rejoined session: ${data.sessionId}`);
+    });
+
+    // Handle rejoin failure
+    socket.on('rejoin-failed', (message) => {
+      console.log('Rejoin failed:', message);
+      // Clear invalid tokens
+      localStorage.removeItem('hostSessionId');
+      localStorage.removeItem('hostToken');
+      
+      // Join as new host
+      socket.emit('join-host');
+      alert('Previous session expired. Starting fresh.');
+    });
+
+    // Handle session ended
+    socket.on('session-ended', () => {
+      // Clear session data from localStorage
+      localStorage.removeItem('hostSessionId');
+      localStorage.removeItem('hostToken');
+      
+      // Reset UI state
+      document.getElementById('sessionId').textContent = 'Not started';
+      document.getElementById('currentTeam').textContent = 'None';
+      document.getElementById('answersList').innerHTML = '';
+      document.querySelector('#leaderboardTable tbody').innerHTML = '';
+      
+      // Clear team selections
+      const teamSelect = document.getElementById('teamSelect');
+      Array.from(teamSelect.options).forEach(option => option.selected = false);
+      
+      // Clear question selections
+      const questionSelect = document.getElementById('questionSelect');
+      Array.from(questionSelect.options).forEach(option => option.selected = false);
+      
+      alert('Session has been ended. All data cleared.');
+      console.log('Session ended, localStorage and UI cleared');
     });
 
     socket.on('init-host-data', (data) => {

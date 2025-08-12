@@ -14,6 +14,10 @@ model Session {
   id        Int      @id @default(autoincrement())
   name      String
   sessionId String   @unique
+  hostToken String?  @unique
+  currentTeamIndex Int? @default(0)
+  teams     Json?
+  answersByTeam Json?
   createdAt DateTime @default(now())
   sessionTeams SessionTeam[] @relation("SessionToSessionTeam")
   sessionQuestions SessionQuestion[] @relation("SessionToSessionQuestion")
@@ -79,6 +83,8 @@ model SessionQuestion {
 model Judge {
   id        Int      @id @default(autoincrement())
   name      String   @unique
+  judgeToken String? @unique
+  sessionId  Int?
   answers   Answer[]
   finalAnswers FinalAnswer[]
   createdAt DateTime @default(now())
