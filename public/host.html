@@ -1,8 +1,12 @@
 <!DOCTYPE html>
-<html>
+<html dir="rtl" lang="ar">
 <head>
-  <title>Host Judging</title>
+  <meta charset="UTF-8">
+  <title>إدارة التحكيم</title>
   <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+    }
     .team-controls { margin: 20px 0; }
     .team-list { margin: 10px 0; }
     .answers { margin-top: 20px; border: 1px solid #ccc; padding: 10px; }
@@ -10,51 +14,51 @@
   </style>
 </head>
 <body>
-  <h1>Host Judging</h1>
+  <h1>إدارة التحكيم</h1>
   
     <div>
-      <h2>Teams</h2>
+      <h2>الفرق</h2>
       <select id="teamSelect" multiple style="width: 300px; height: 150px;">
         <!-- Teams will be populated from database -->
       </select>
-      <button onclick="setTeams()">Set Selected Teams</button>
+      <button onclick="setTeams()">تعيين الفرق المحددة</button>
     </div>
 
   <div class="team-controls">
-    <h3>Current Team: <span id="currentTeam">None</span></h3>
-    <button onclick="previousTeam()">Previous Team</button>
-    <button onclick="nextTeam()">Next Team</button>
-    <button onclick="endSession()">End Session</button>
+    <h3>الفريق الحالي: <span id="currentTeam">لا يوجد</span></h3>
+    <button onclick="previousTeam()">الفريق السابق</button>
+    <button onclick="nextTeam()">الفريق التالي</button>
+    <button onclick="endSession()">إنهاء الجلسة</button>
   </div>
 
   <div id="judgeList">
-    <h3>Connected Judges:</h3>
+    <h3>المحكمون المتصلون:</h3>
     <ul id="judges"></ul>
   </div>
     <div>
-      <h3>Question Banks</h3>
+      <h3>بنوك الأسئلة</h3>
       <select id="bankSelect" style="width: 300px; margin-bottom: 10px;">
-        <option value="">Select a question bank</option>
+        <option value="">اختر بنك الأسئلة</option>
       </select>
-      <h3>Questions</h3>
+      <h3>الأسئلة</h3>
       <select id="questionSelect" multiple style="width: 300px; height: 150px;">
         <!-- Questions will be populated from database -->
       </select>
-      <button onclick="sendQuestion()">Send Selected Questions</button>
+      <button onclick="sendQuestion()">إرسال الأسئلة المحددة</button>
     </div>
 
   <div id="answers" class="answers">
-    <h3>Answers</h3>
+    <h3>الإجابات</h3>
     <div id="answersList"></div>
   </div>
 
   <div id="leaderboard" style="margin: 20px 0; border: 1px solid #ccc; padding: 10px;">
-    <h3>Leaderboard</h3>
+    <h3>لوحة المتصدرين</h3>
     <table id="leaderboardTable" style="width: 100%; border-collapse: collapse;">
       <thead>
         <tr>
-          <th style="text-align: left; padding: 8px; border-bottom: 1px solid #ddd;">Team</th>
-          <th style="text-align: right; padding: 8px; border-bottom: 1px solid #ddd;">Total Points</th>
+          <th style="text-align: right; padding: 8px; border-bottom: 1px solid #ddd;">الفريق</th>
+          <th style="text-align: left; padding: 8px; border-bottom: 1px solid #ddd;">إجمالي النقاط</th>
         </tr>
       </thead>
       <tbody>
@@ -64,16 +68,16 @@
   </div>
 
   <div id="sessionInfo">
-    <h3>Session ID: <span id="sessionId">Not started</span></h3>
-    <button id="startSessionBtn" disabled>Start Session</button>
+    <h3>معرف الجلسة: <span id="sessionId">لم تبدأ</span></h3>
+    <button id="startSessionBtn" disabled>بدء الجلسة</button>
   </div>
 
   <div style="margin: 20px 0; display: flex; gap: 10px;">
     <a href="/add_questions.html" style="padding: 8px 15px; background: #4CAF50; color: white; text-decoration: none; border-radius: 3px;">
-      Add/Edit Questions
+      إضافة/تعديل الأسئلة
     </a>
     <a href="/results.html" style="padding: 8px 15px; background: #2196F3; color: white; text-decoration: none; border-radius: 3px;">
-      View Results
+      عرض النتائج
     </a>
   </div>
 
@@ -81,7 +85,7 @@
   <script>
     const socket = io();
     let teams = [];
-    let currentTeam = 'None';
+    let currentTeam = 'لا يوجد';
 
     // Check for existing session on page load
     const savedSessionId = localStorage.getItem('hostSessionId');
@@ -142,7 +146,7 @@
         }));
       
       if (selectedQuestions.length === 0) {
-        alert('Please select at least one question');
+        alert('يرجى اختيار سؤال واحد على الأقل');
         return;
       }
       
@@ -152,7 +156,7 @@
     socket.on('teams-set', (teamList) => {
       teams = teamList;
       updateTeamsList();
-      currentTeam = teams[0] || 'None';
+      currentTeam = teams[0] || 'لا يوجد';
       document.getElementById('currentTeam').textContent = currentTeam;
     });
 
@@ -190,7 +194,7 @@
 
     socket.on('session-started', (sessionId) => {
       document.getElementById('sessionId').textContent = sessionId;
-      alert(`Session started with ID: ${sessionId}`);
+      alert(`تم بدء الجلسة بالمعرف: ${sessionId}`);
     });
 
     // Handle session creation with token storage
@@ -211,7 +215,7 @@
       document.getElementById('sessionId').textContent = data.sessionId;
       
       console.log('Host successfully rejoined session:', data.sessionId);
-      alert(`Rejoined session: ${data.sessionId}`);
+      alert(`تم إعادة الانضمام للجلسة: ${data.sessionId}`);
     });
 
     // Handle rejoin failure
@@ -223,7 +227,7 @@
       
       // Join as new host
       socket.emit('join-host');
-      alert('Previous session expired. Starting fresh.');
+      alert('انتهت صلاحية الجلسة السابقة. البدء من جديد.');
     });
 
     // Handle session ended
@@ -233,8 +237,8 @@
       localStorage.removeItem('hostToken');
       
       // Reset UI state
-      document.getElementById('sessionId').textContent = 'Not started';
-      document.getElementById('currentTeam').textContent = 'None';
+      document.getElementById('sessionId').textContent = 'لم تبدأ';
+      document.getElementById('currentTeam').textContent = 'لا يوجد';
       document.getElementById('answersList').innerHTML = '';
       document.querySelector('#leaderboardTable tbody').innerHTML = '';
       
@@ -246,7 +250,7 @@
       const questionSelect = document.getElementById('questionSelect');
       Array.from(questionSelect.options).forEach(option => option.selected = false);
       
-      alert('Session has been ended. All data cleared.');
+      alert('تم إنهاء الجلسة. تم مسح جميع البيانات.');
       console.log('Session ended, localStorage and UI cleared');
     });
 
@@ -265,7 +269,7 @@
 
       // Populate question banks dropdown
       const bankSelect = document.getElementById('bankSelect');
-      bankSelect.innerHTML = '<option value="">Select a question bank</option>';
+      bankSelect.innerHTML = '<option value="">اختر بنك الأسئلة</option>';
       data.questionBanks.forEach(bank => {
         const option = document.createElement('option');
         option.value = bank.id;
@@ -324,7 +328,7 @@
           const answerText = typeof a.answer === 'object' ? 
             (a.answer.answer || JSON.stringify(a.answer)) : 
             a.answer;
-          return `<li>${a.player || 'Unknown'}: ${answerText}</li>`;
+          return `<li>${a.player || 'غير معروف'}: ${answerText}</li>`;
         }).join('');
         
         return `
@@ -342,7 +346,7 @@
       tableBody.innerHTML = leaderboard.map(team => `
         <tr>
           <td style="padding: 8px; border-bottom: 1px solid #ddd;">${team.teamName}</td>
-          <td style="text-align: right; padding: 8px; border-bottom: 1px solid #ddd;">${team.totalPoints.toFixed(2)}</td>
+          <td style="text-align: left; padding: 8px; border-bottom: 1px solid #ddd;">${team.totalPoints.toFixed(2)}</td>
         </tr>
       `).join('');
     });

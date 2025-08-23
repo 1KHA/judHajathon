@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html dir="rtl" lang="ar">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Session Results</title>
+    <title>نتائج الجلسة</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
             max-width: 1200px;
             margin: 0 auto;
             padding: 20px;
@@ -31,7 +31,7 @@
         th, td {
             border: 1px solid #ddd;
             padding: 8px;
-            text-align: left;
+            text-align: right;
         }
         th {
             background-color: #f2f2f2;
@@ -39,7 +39,7 @@
     </style>
 </head>
 <body>
-    <h1>Session Results</h1>
+    <h1>نتائج الجلسة</h1>
     <div id="results-container">
         <!-- Results will be populated here -->
     </div>
@@ -68,43 +68,43 @@
             const container = document.getElementById('results-container');
             
             if (results.length === 0) {
-                container.innerHTML = '<p>No results available</p>';
+                container.innerHTML = '<p>لا توجد نتائج متاحة</p>';
                 return;
             }
             
             container.innerHTML = results.map(session => `
                 <div class="session">
-                    <h2>Session: ${session.name} (ID: ${session.sessionId})</h2>
-                    <p>Created: ${new Date(session.createdAt).toLocaleString()}</p>
+                    <h2>الجلسة: ${session.name} (المعرف: ${session.sessionId})</h2>
+                    <p>تم الإنشاء: ${new Date(session.createdAt).toLocaleString('ar-SA')}</p>
                     <div>
                         ${session.results.map(result => `
                             <div class="team-result">
-                                <h3>Team: ${result.team.name}</h3>
-                                <p>Total Points: ${calculateTotalPoints(JSON.parse(result.details).answers)}</p>
+                                <h3>الفريق: ${result.team.name}</h3>
+                                <p>إجمالي النقاط: ${calculateTotalPoints(JSON.parse(result.details).answers)}</p>
                                 <table>
                                     <thead>
                                         <tr>
-                                            <th>Question</th>
-                                            <th>Question Weight</th>
-                                            <th>Judge</th>
-                                            <th>Answer</th>
-                                            <th>Option Weight</th>
-                                            <th>Max Option Weight</th>
-                                            <th>Points</th>
-                                            <th>Calculation</th>
+                                            <th>السؤال</th>
+                                            <th>وزن السؤال</th>
+                                            <th>المحكم</th>
+                                            <th>الإجابة</th>
+                                            <th>وزن الخيار</th>
+                                            <th>أقصى وزن للخيار</th>
+                                            <th>النقاط</th>
+                                            <th>الحساب</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         ${JSON.parse(result.details).answers.map(answer => `
                                             <tr>
-                                                <td>${answer.questionText || 'N/A'}</td>
+                                                <td>${answer.questionText || 'غير متاح'}</td>
                                                 <td>${answer.questionWeight || '1'}</td>
-                                                <td>${answer.judgeName || 'N/A'}</td>
-                                                <td>${answer.answer || 'N/A'}</td>
+                                                <td>${answer.judgeName || 'غير متاح'}</td>
+                                                <td>${answer.answer || 'غير متاح'}</td>
                                                 <td>${answer.optionWeight || '0'}</td>
                                                 <td>${answer.maxOptionWeight || '0'}</td>
                                                 <td>${answer.points || '0'}</td>
-                                                <td>(${answer.optionWeight || '0'} / ${answer.maxOptionWeight || '0'}) × ${answer.questionWeight || '1'} = ${answer.points || '0'}</td>
+                                                <td>(${answer.optionWeight || '0'} ÷ ${answer.maxOptionWeight || '0'}) × ${answer.questionWeight || '1'} = ${answer.points || '0'}</td>
                                             </tr>
                                         `).join('')}
                                     </tbody>

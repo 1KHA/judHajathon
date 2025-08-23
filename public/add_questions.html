@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html dir="rtl" lang="ar">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Add Questions</title>
+    <title>إضافة الأسئلة</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
             max-width: 800px;
             margin: 0 auto;
             padding: 20px;
@@ -54,25 +54,25 @@
     </style>
 </head>
 <body>
-    <h1>Add Questions</h1>
+    <h1>إضافة الأسئلة</h1>
     
     <div id="sections-container">
         <!-- Sections will be added here -->
     </div>
 
-    <button id="add-section">Add Section</button>
-    <button id="save-questions">Save Questions</button>
+    <button id="add-section">إضافة قسم</button>
+    <button id="save-questions">حفظ الأسئلة</button>
     <div style="margin: 20px 0;">
-        <label for="bank-name">Save to Question Bank (optional): </label>
-        <input type="text" id="bank-name" placeholder="Enter bank name">
+        <label for="bank-name">حفظ في بنك الأسئلة (اختياري): </label>
+        <input type="text" id="bank-name" placeholder="أدخل اسم البنك">
     </div>
 
     <div style="margin: 20px 0;">
-        <label for="total-points-input">Total Points: </label>
+        <label for="total-points-input">إجمالي النقاط: </label>
         <input type="number" id="total-points-input" min="1" value="100" style="width: 80px;">
     </div>
     <div class="points-summary">
-        <h3>Points Distribution</h3>
+        <h3>توزيع النقاط</h3>
         <div id="points-display"></div>
     </div>
 
@@ -93,7 +93,7 @@
             const sectionId = Date.now();
             const section = {
                 id: sectionId,
-                name: `Section ${sections.length + 1}`,
+                name: `القسم ${sections.length + 1}`,
                 weight: 1,
                 questions: []
             };
@@ -142,13 +142,13 @@
                                    onchange="updateSectionName(${section.id}, this.value)">
                         </h3>
                         <div>
-                            Weight: <input type="number" min="0.1" step="0.1" value="${section.weight}" 
+                            الوزن: <input type="number" min="0.1" step="0.1" value="${section.weight}" 
                                           onchange="updateSectionWeight(${section.id}, this.value)">
-                            <button onclick="removeSection(${section.id})">Remove</button>
+                            <button onclick="removeSection(${section.id})">إزالة</button>
                         </div>
                     </div>
                     <div id="questions-${section.id}"></div>
-                    <button onclick="addQuestion(${section.id})">Add Question</button>
+                    <button onclick="addQuestion(${section.id})">إضافة سؤال</button>
                 `;
                 container.appendChild(sectionEl);
 
@@ -157,28 +157,28 @@
                     const questionEl = document.createElement('div');
                     questionEl.className = 'question';
                     questionEl.innerHTML = `
-                        <textarea placeholder="Question text" 
+                        <textarea placeholder="نص السؤال" 
                                   onchange="updateQuestionText(${section.id}, ${qIndex}, this.value)">${question.text}</textarea>
                         ${question.choices.map((choice, cIndex) => `
                             <div style="display: flex; align-items: center; gap: 10px; margin: 5px 0;">
-                                <input type="text" placeholder="Choice ${cIndex + 1}" 
+                                <input type="text" placeholder="خيار ${cIndex + 1}" 
                                        value="${typeof choice === 'object' && choice !== null ? (choice.text || '') : ''}" 
                                        onchange="updateQuestionChoice(${section.id}, ${qIndex}, ${cIndex}, this.value)"
                                        style="flex: 1;">
                                 <input type="number" min="0" step="0.1" value="${typeof choice === 'object' && choice !== null ? (choice.weight || 1) : 1}" 
                                        onchange="updateQuestionChoiceWeight(${section.id}, ${qIndex}, ${cIndex}, this.value)"
-                                       style="width: 60px;" placeholder="Weight">
+                                       style="width: 60px;" placeholder="الوزن">
                             </div>
                         `).join('')}
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
                             <div>
-                                <button type="button" onclick="addChoice(${section.id}, ${qIndex})" style="background: #2196F3;">Add Choice</button>
+                                <button type="button" onclick="addChoice(${section.id}, ${qIndex})" style="background: #2196F3;">إضافة خيار</button>
                                 ${question.choices.length > 1 ? 
-                                  `<button type="button" onclick="removeChoice(${section.id}, ${qIndex})" style="background: #f44336;">Remove Last Choice</button>` : 
+                                  `<button type="button" onclick="removeChoice(${section.id}, ${qIndex})" style="background: #f44336;">إزالة الخيار الأخير</button>` : 
                                   ''}
                             </div>
                             <div>
-                                <button onclick="removeQuestion(${section.id}, ${qIndex})">Remove Question</button>
+                                <button onclick="removeQuestion(${section.id}, ${qIndex})">إزالة السؤال</button>
                             </div>
                         </div>
                     `;
@@ -265,7 +265,7 @@
             const pointsDisplay = document.getElementById('points-display');
             
             if (sections.length === 0) {
-                pointsDisplay.innerHTML = '<p>Add sections to see points distribution</p>';
+                pointsDisplay.innerHTML = '<p>أضف أقساماً لرؤية توزيع النقاط</p>';
                 return;
             }
 
@@ -286,14 +286,14 @@
             });
 
             pointsDisplay.innerHTML = `
-                <p>Total Points: ${totalPoints}</p>
+                <p>إجمالي النقاط: ${totalPoints}</p>
                 <table>
                     <tr>
-                        <th>Section</th>
-                        <th>Weight</th>
-                        <th>Questions</th>
-                        <th>Total Points</th>
-                        <th>Points per Question</th>
+                        <th>القسم</th>
+                        <th>الوزن</th>
+                        <th>الأسئلة</th>
+                        <th>إجمالي النقاط</th>
+                        <th>النقاط لكل سؤال</th>
                     </tr>
                     ${pointsData.map(data => `
                         <tr>
@@ -310,7 +310,7 @@
 
         function saveQuestions() {
             if (sections.length === 0) {
-                alert('Please add at least one section with questions');
+                alert('يرجى إضافة قسم واحد على الأقل مع الأسئلة');
                 return;
             }
 
@@ -323,13 +323,13 @@
                     // Validate question text
                     if (!question.text || !question.text.trim()) {
                         hasInvalid = true;
-                        errorMsg += `Section ${sIdx + 1}, Question ${qIdx + 1}: Missing question text.\n`;
+                        errorMsg += `القسم ${sIdx + 1}، السؤال ${qIdx + 1}: نص السؤال مفقود.\n`;
                         return;
                     }
                     // Validate choices array
                     if (!Array.isArray(question.choices) || question.choices.length < 1) {
                         hasInvalid = true;
-                        errorMsg += `Section ${sIdx + 1}, Question ${qIdx + 1}: Must have at least one choice.\n`;
+                        errorMsg += `القسم ${sIdx + 1}، السؤال ${qIdx + 1}: يجب أن يحتوي على خيار واحد على الأقل.\n`;
                         return;
                     }
                     // Validate each choice
@@ -342,7 +342,7 @@
                             typeof choice.weight === 'undefined'
                         ) {
                             hasInvalid = true;
-                            errorMsg += `Section ${sIdx + 1}, Question ${qIdx + 1}, Choice ${cIdx + 1}: Invalid choice (must have text and weight).\n`;
+                            errorMsg += `القسم ${sIdx + 1}، السؤال ${qIdx + 1}، الخيار ${cIdx + 1}: خيار غير صالح (يجب أن يحتوي على نص ووزن).\n`;
                             return;
                         }
                     }
@@ -356,7 +356,7 @@
             });
 
             if (hasInvalid || questions.length === 0) {
-                alert(errorMsg || 'Please ensure all questions have text and at least one choice with text and weight.');
+                alert(errorMsg || 'يرجى التأكد من أن جميع الأسئلة تحتوي على نص وخيار واحد على الأقل مع نص ووزن.');
                 return;
             }
 
@@ -370,12 +370,12 @@
 
         // Listen for questions saved event
         socket.on('questions-saved', function(data) {
-            alert(`Success! ${data.questions.length} questions saved to bank.`);
+            alert(`نجح! تم حفظ ${data.questions.length} سؤال في البنك.`);
         });
 
         // Listen for error messages
         socket.on('error-message', function(message) {
-            alert(`Error: ${message}`);
+            alert(`خطأ: ${message}`);
         });
 
         // Initialize with one section

@@ -1,8 +1,12 @@
 <!DOCTYPE html>
-<html>
+<html dir="rtl" lang="ar">
 <head>
-  <title>Join Judging</title>
+  <meta charset="UTF-8">
+  <title>الانضمام للتحكيم</title>
   <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+    }
     .current-team {
       font-size: 1.2em;
       margin: 10px 0;
@@ -43,20 +47,20 @@
   </style>
 </head>
 <body>
-  <h1>Join Judging</h1>
+  <h1>الانضمام للتحكيم</h1>
   <div id="currentTeam" class="current-team"></div>
-  <input type="text" id="name" placeholder="Your name">
-  <button onclick="joinGame()">Join</button>
+  <input type="text" id="name" placeholder="اسمك">
+  <button onclick="joinGame()">انضمام</button>
 
     <div id="question-box" style="display:none;">
       <div id="questions-container"></div>
       <button id="submitFinalBtn" style="margin-top: 20px; padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 4px; display: none; cursor: pointer; transition: all 0.2s ease;">
-        Submit Final Answers
+        إرسال الإجابات النهائية
       </button>
     </div>
 
   <div id="sessionInfo">
-    <h3>Session ID: <span id="sessionId">Not started</span></h3>
+    <h3>معرف الجلسة: <span id="sessionId">لم تبدأ</span></h3>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
@@ -88,7 +92,7 @@
     function joinGame() {
       const name = document.getElementById('name').value;
       if (!name || name.trim() === '') {
-        alert('Please enter your name');
+        alert('يرجى إدخال اسمك');
         return;
       }
       socket.emit('join-judging', '1234', name);
@@ -108,14 +112,14 @@
       
       document.getElementById('name').style.display = 'none';
       document.getElementById('question-box').style.display = 'block';
-      alert(`Welcome ${name} to the Judging Session`);
+      alert(`مرحباً ${name} في جلسة التحكيم`);
     });
 
     // Handle successful judge rejoin
     socket.on('judge-rejoined', (data) => {
       document.getElementById('sessionId').textContent = data.sessionId;
       console.log('Judge successfully rejoined session:', data.sessionId);
-      alert(`Rejoined session: ${data.sessionId} as ${data.name}`);
+      alert(`تم إعادة الانضمام للجلسة: ${data.sessionId} كـ ${data.name}`);
     });
 
     // Handle rejoin failure
@@ -129,7 +133,7 @@
       // Show join form
       document.getElementById('name').style.display = 'block';
       document.getElementById('question-box').style.display = 'none';
-      alert('Previous session expired. Please join again.');
+      alert('انتهت صلاحية الجلسة السابقة. يرجى الانضمام مرة أخرى.');
     });
 
     // Handle session ended
@@ -145,19 +149,19 @@
       document.getElementById('currentTeam').textContent = '';
       document.getElementById('questions-container').innerHTML = '';
       document.getElementById('submitFinalBtn').style.display = 'none';
-      document.getElementById('sessionId').textContent = 'Not started';
+      document.getElementById('sessionId').textContent = 'لم تبدأ';
       
       // Clear name input
       document.getElementById('name').value = '';
       
-      alert('The judging session has ended. Please join a new session.');
+      alert('انتهت جلسة التحكيم. يرجى الانضمام لجلسة جديدة.');
       console.log('Session ended, localStorage and UI cleared');
     });
 
     socket.on('question', (data) => {
       console.log('Received question data:', data);
       document.getElementById('currentTeam').textContent = 
-        `Currently judging: ${data.currentTeam || 'No team selected'}`;
+        `يتم تحكيم: ${data.currentTeam || 'لم يتم اختيار فريق'}`;
       
       const questions = Array.isArray(data.questions) ? data.questions : [data.questions];
       const container = document.getElementById('questions-container');
@@ -183,7 +187,7 @@
         // Get team ID from the current session data
         const teamId = data.teamId || 0; // Default to 0 if not found
         if (teamId === 0) {
-          alert('Error: No team selected');
+          alert('خطأ: لم يتم اختيار فريق');
           return;
         }
         socket.emit('submit-final-answers', {
@@ -198,7 +202,7 @@
         questionDiv.style.marginBottom = '20px';
 
         const questionTitle = document.createElement('h2');
-        questionTitle.innerText = `Q${index + 1}: ${question.text}`;
+        questionTitle.innerText = `س${index + 1}: ${question.text}`;
         questionDiv.appendChild(questionTitle);
 
         const choicesDiv = document.createElement('div');
@@ -227,7 +231,7 @@
       });
     });
 
-    socket.on('error-message', msg => alert(`Judging Error: ${msg}`));
+    socket.on('error-message', msg => alert(`خطأ في التحكيم: ${msg}`));
   </script>
 </body>
 </html>
