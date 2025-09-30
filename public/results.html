@@ -5,43 +5,457 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>نتائج الجلسة</title>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #2563eb;
+            --primary-hover: #1d4ed8;
+            --primary-light: #dbeafe;
+            --secondary-color: #64748b;
+            --secondary-light: #f1f5f9;
+            --danger-color: #ef4444;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --border-color: #e2e8f0;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            --radius: 8px;
+        }
+
         body {
-            font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
-            max-width: 1200px;
+            font-family: 'Segoe UI', Tahoma, system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
             margin: 0 auto;
             padding: 20px;
         }
+
+        /* Header */
+        .header {
+            background: white;
+            border-radius: var(--radius);
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow-md);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: var(--primary-color);
+            font-size: 28px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header h1::before {
+            content: "📊";
+            font-size: 32px;
+        }
+
+        .back-button {
+            padding: 10px 20px;
+            background: var(--secondary-color);
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+
+        .back-button:hover {
+            background: #475569;
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        /* Session Card */
         .session {
-            border: 1px solid #ddd;
-            padding: 15px;
+            background: white;
+            border-radius: var(--radius);
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow-md);
+            animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .session-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 16px;
             margin-bottom: 20px;
-            border-radius: 5px;
+            border-bottom: 2px solid var(--border-color);
         }
+
+        .session-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .session-title h2 {
+            color: var(--text-primary);
+            font-size: 22px;
+            font-weight: 600;
+        }
+
+        .session-badge {
+            background: var(--primary-light);
+            color: var(--primary-color);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .session-meta {
+            color: var(--text-secondary);
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .session-meta::before {
+            content: "📅";
+        }
+
+        /* Team Result Card */
         .team-result {
-            margin: 10px 0;
-            padding: 10px;
-            background: #f5f5f5;
-            border-radius: 3px;
+            background: var(--secondary-light);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 16px;
+            border-right: 4px solid var(--primary-color);
+            transition: all 0.2s;
         }
-        table {
+
+        .team-result:hover {
+            transform: translateX(-4px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .team-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .team-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .team-name::before {
+            content: "👥";
+            font-size: 20px;
+        }
+
+        .team-score {
+            background: var(--primary-color);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .team-score::before {
+            content: "🏆";
+        }
+
+        /* Results Table */
+        .results-table {
             width: 100%;
-            border-collapse: collapse;
-            margin: 10px 0;
+            border-collapse: separate;
+            border-spacing: 0;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
         }
-        th, td {
-            border: 1px solid #ddd;
-            padding: 8px;
+
+        .results-table thead {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .results-table th {
+            padding: 12px;
             text-align: right;
+            font-weight: 600;
+            font-size: 13px;
+            white-space: nowrap;
         }
-        th {
-            background-color: #f2f2f2;
+
+        .results-table tbody tr {
+            transition: all 0.2s;
+        }
+
+        .results-table tbody tr:hover {
+            background: var(--primary-light);
+        }
+
+        .results-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 14px;
+        }
+
+        .results-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Score Badges */
+        .score-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 12px;
+        }
+
+        .score-high {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .score-medium {
+            background: var(--warning-color);
+            color: white;
+        }
+
+        .score-low {
+            background: var(--danger-color);
+            color: white;
+        }
+
+        /* Calculation Display */
+        .calculation {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: var(--text-secondary);
+            background: var(--secondary-light);
+            padding: 4px 6px;
+            border-radius: 4px;
+            white-space: nowrap;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px;
+            color: var(--text-secondary);
+        }
+
+        .empty-state-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .empty-state h3 {
+            font-size: 20px;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+
+        .empty-state p {
+            font-size: 16px;
+        }
+
+        /* Loading State */
+        .loading-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 400px;
+        }
+
+        .loading {
+            width: 48px;
+            height: 48px;
+            border: 4px solid var(--primary-light);
+            border-top-color: var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Summary Stats */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 16px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .container {
+                padding: 12px;
+            }
+
+            .header {
+                flex-direction: column;
+                gap: 16px;
+                text-align: center;
+            }
+
+            .session-header {
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .team-header {
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .results-table {
+                font-size: 12px;
+            }
+
+            .results-table th,
+            .results-table td {
+                padding: 8px;
+            }
+
+            /* Hide less important columns on mobile */
+            .results-table th:nth-child(2),
+            .results-table td:nth-child(2),
+            .results-table th:nth-child(5),
+            .results-table td:nth-child(5),
+            .results-table th:nth-child(6),
+            .results-table td:nth-child(6) {
+                display: none;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Print Styles */
+        @media print {
+            body {
+                background: white;
+            }
+
+            .header,
+            .back-button {
+                display: none;
+            }
+
+            .session {
+                box-shadow: none;
+                border: 1px solid var(--border-color);
+                page-break-inside: avoid;
+            }
+
+            .team-result {
+                page-break-inside: avoid;
+            }
+        }
+
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--secondary-light);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--secondary-color);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--primary-color);
         }
     </style>
 </head>
 <body>
-    <h1>نتائج الجلسة</h1>
-    <div id="results-container">
-        <!-- Results will be populated here -->
+    <div class="container">
+        <div class="header">
+            <h1>نتائج الجلسات</h1>
+            <a href="/host.html" class="back-button">
+                <span>🔙</span>
+                العودة للإدارة
+            </a>
+        </div>
+
+        <div id="results-container">
+            <div class="loading-container">
+                <div class="loading"></div>
+            </div>
+        </div>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
@@ -58,6 +472,14 @@
             // Round to 2 decimal places
             return Math.round(total * 100) / 100;
         }
+
+        // Function to get score badge class based on percentage
+        function getScoreBadgeClass(points, maxPoints) {
+            const percentage = (points / maxPoints) * 100;
+            if (percentage >= 80) return 'score-high';
+            if (percentage >= 50) return 'score-medium';
+            return 'score-low';
+        }
         
         const socket = io();
         
@@ -68,52 +490,117 @@
             const container = document.getElementById('results-container');
             
             if (results.length === 0) {
-                container.innerHTML = '<p>لا توجد نتائج متاحة</p>';
+                container.innerHTML = `
+                    <div class="session">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📋</div>
+                            <h3>لا توجد نتائج متاحة</h3>
+                            <p>لم يتم إكمال أي جلسات بعد</p>
+                        </div>
+                    </div>
+                `;
                 return;
             }
             
-            container.innerHTML = results.map(session => `
-                <div class="session">
-                    <h2>الجلسة: ${session.name} (المعرف: ${session.sessionId})</h2>
-                    <p>تم الإنشاء: ${new Date(session.createdAt).toLocaleString('ar-SA')}</p>
-                    <div>
-                        ${session.results.map(result => `
-                            <div class="team-result">
-                                <h3>الفريق: ${result.team.name}</h3>
-                                <p>إجمالي النقاط: ${calculateTotalPoints(JSON.parse(result.details).answers)}</p>
-                                <table>
-                                    <thead>
-                                        <tr>
-                                            <th>السؤال</th>
-                                            <th>وزن السؤال</th>
-                                            <th>المحكم</th>
-                                            <th>الإجابة</th>
-                                            <th>وزن الخيار</th>
-                                            <th>أقصى وزن للخيار</th>
-                                            <th>النقاط</th>
-                                            <th>الحساب</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        ${JSON.parse(result.details).answers.map(answer => `
-                                            <tr>
-                                                <td>${answer.questionText || 'غير متاح'}</td>
-                                                <td>${answer.questionWeight || '1'}</td>
-                                                <td>${answer.judgeName || 'غير متاح'}</td>
-                                                <td>${answer.answer || 'غير متاح'}</td>
-                                                <td>${answer.optionWeight || '0'}</td>
-                                                <td>${answer.maxOptionWeight || '0'}</td>
-                                                <td>${answer.points || '0'}</td>
-                                                <td>(${answer.optionWeight || '0'} ÷ ${answer.maxOptionWeight || '0'}) × ${answer.questionWeight || '1'} = ${answer.points || '0'}</td>
-                                            </tr>
-                                        `).join('')}
-                                    </tbody>
-                                </table>
+            container.innerHTML = results.map(session => {
+                // Calculate statistics for this session
+                const totalTeams = session.results.length;
+                const scores = session.results.map(r => calculateTotalPoints(JSON.parse(r.details).answers));
+                const maxScore = Math.max(...scores);
+                const avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
+                
+                return `
+                    <div class="session">
+                        <div class="session-header">
+                            <div class="session-title">
+                                <h2>${session.name}</h2>
+                                <span class="session-badge">المعرف: ${session.sessionId}</span>
                             </div>
-                        `).join('')}
+                            <div class="session-meta">
+                                ${new Date(session.createdAt).toLocaleString('ar-SA')}
+                            </div>
+                        </div>
+                        
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-value">${totalTeams}</div>
+                                <div class="stat-label">عدد الفرق</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value">${maxScore.toFixed(2)}</div>
+                                <div class="stat-label">أعلى نقاط</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value">${avgScore.toFixed(2)}</div>
+                                <div class="stat-label">متوسط النقاط</div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            ${session.results.map((result, index) => {
+                                const totalPoints = calculateTotalPoints(JSON.parse(result.details).answers);
+                                const isWinner = index === 0 && totalPoints === maxScore;
+                                
+                                return `
+                                    <div class="team-result">
+                                        <div class="team-header">
+                                            <h3 class="team-name">
+                                                ${isWinner ? '🥇' : ''} ${result.team.name}
+                                            </h3>
+                                            <div class="team-score">
+                                                ${totalPoints.toFixed(2)} نقطة
+                                            </div>
+                                        </div>
+                                        <div style="overflow-x: auto;">
+                                            <table class="results-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>السؤال</th>
+                                                        <th>وزن السؤال</th>
+                                                        <th>المحكم</th>
+                                                        <th>الإجابة</th>
+                                                        <th>وزن الخيار</th>
+                                                        <th>أقصى وزن</th>
+                                                        <th>النقاط</th>
+                                                        <th>الحساب</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    ${JSON.parse(result.details).answers.map(answer => {
+                                                        const points = parseFloat(answer.points || 0);
+                                                        const badgeClass = getScoreBadgeClass(points, parseFloat(answer.questionWeight || 1));
+                                                        
+                                                        return `
+                                                            <tr>
+                                                                <td>${answer.questionText || 'غير متاح'}</td>
+                                                                <td>${answer.questionWeight || '1'}</td>
+                                                                <td>${answer.judgeName || 'غير متاح'}</td>
+                                                                <td>${answer.answer || 'غير متاح'}</td>
+                                                                <td>${answer.optionWeight || '0'}</td>
+                                                                <td>${answer.maxOptionWeight || '0'}</td>
+                                                                <td>
+                                                                    <span class="score-badge ${badgeClass}">
+                                                                        ${points.toFixed(2)}
+                                                                    </span>
+                                                                </td>
+                                                                <td>
+                                                                    <span class="calculation">
+                                                                        (${answer.optionWeight || '0'} ÷ ${answer.maxOptionWeight || '0'}) × ${answer.questionWeight || '1'}
+                                                                    </span>
+                                                                </td>
+                                                            </tr>
+                                                        `;
+                                                    }).join('')}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
                     </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         });
     </script>
 </body>

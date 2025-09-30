@@ -2,65 +2,428 @@
 <html dir="rtl" lang="ar">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>الانضمام للتحكيم</title>
   <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --primary-color: #2563eb;
+      --primary-hover: #1d4ed8;
+      --primary-light: #dbeafe;
+      --secondary-color: #64748b;
+      --secondary-light: #f1f5f9;
+      --danger-color: #ef4444;
+      --success-color: #10b981;
+      --warning-color: #f59e0b;
+      --text-primary: #1e293b;
+      --text-secondary: #64748b;
+      --border-color: #e2e8f0;
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+      --radius: 8px;
+    }
+
     body {
-      font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+      font-family: 'Segoe UI', Tahoma, system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      color: var(--text-primary);
+      line-height: 1.6;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
     }
-    .current-team {
-      font-size: 1.2em;
-      margin: 10px 0;
-      padding: 5px;
-      background: #f0f0f0;
+
+    .main-container {
+      width: 100%;
+      max-width: 800px;
     }
-    .answer-btn {
-      margin: 5px;
-      padding: 8px 15px;
-      background: #e0e0e0;
+
+    /* Login Card */
+    .login-card {
+      background: white;
+      border-radius: 16px;
+      padding: 40px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+      text-align: center;
+      animation: slideUp 0.5s ease-out;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .login-card h1 {
+      color: var(--primary-color);
+      font-size: 32px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+
+    .login-card h1::before {
+      content: "⚖️";
+      font-size: 36px;
+    }
+
+    .login-subtitle {
+      color: var(--text-secondary);
+      margin-bottom: 32px;
+      font-size: 16px;
+    }
+
+    /* Session Badge */
+    .session-info {
+      background: var(--primary-light);
+      color: var(--primary-color);
+      padding: 12px 20px;
+      border-radius: 12px;
+      margin-bottom: 24px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .session-info::before {
+      content: "●";
+      color: var(--success-color);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* Form Elements */
+    .form-group {
+      margin-bottom: 20px;
+      text-align: right;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid var(--border-color);
+      border-radius: 8px;
+      font-size: 16px;
+      transition: all 0.2s;
+      background: white;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px var(--primary-light);
+    }
+
+    /* Buttons */
+    .btn {
+      padding: 12px 32px;
       border: none;
-      border-radius: 4px;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
       cursor: pointer;
       transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      justify-content: center;
     }
-    .answer-btn:hover {
-      background: #d0d0d0;
-      transform: translateY(-1px);
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    .answer-btn.selected {
-      background: #4CAF50;
+
+    .btn-primary {
+      background: var(--primary-color);
       color: white;
     }
+
+    .btn-primary:hover {
+      background: var(--primary-hover);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .btn-success {
+      background: var(--success-color);
+      color: white;
+    }
+
+    .btn-success:hover {
+      background: #059669;
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    /* Questions Container */
+    .questions-card {
+      background: white;
+      border-radius: 16px;
+      padding: 32px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+      margin-top: 20px;
+      animation: slideUp 0.5s ease-out;
+    }
+
+    .team-header {
+      background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+      color: white;
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 24px;
+      text-align: center;
+    }
+
+    .team-header h2 {
+      font-size: 20px;
+      margin-bottom: 4px;
+    }
+
+    .team-name {
+      font-size: 28px;
+      font-weight: 700;
+    }
+
+    /* Question Box */
+    .question-box {
+      background: var(--secondary-light);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+      border-right: 4px solid var(--primary-color);
+    }
+
+    .question-number {
+      display: inline-block;
+      background: var(--primary-color);
+      color: white;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+
+    .question-text {
+      font-size: 18px;
+      color: var(--text-primary);
+      margin-bottom: 20px;
+      font-weight: 500;
+    }
+
+    /* Answer Buttons */
+    .choices-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+    }
+
+    .answer-btn {
+      padding: 14px 20px;
+      background: white;
+      border: 2px solid var(--border-color);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--text-primary);
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .answer-btn:hover:not(:disabled) {
+      background: var(--primary-light);
+      border-color: var(--primary-color);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .answer-btn.selected {
+      background: var(--primary-color);
+      color: white;
+      border-color: var(--primary-color);
+      animation: selectPulse 0.3s ease-out;
+    }
+
+    @keyframes selectPulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
+
+    .answer-btn.selected::after {
+      content: "✓";
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      background: white;
+      color: var(--primary-color);
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+    }
+
     .answer-btn:disabled {
-      opacity: 0.6;
+      opacity: 0.7;
       cursor: not-allowed;
     }
-    #submitFinalBtn:hover {
-      background: #3e8e41;
-      transform: translateY(-1px);
-      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+
+    /* Submit Button */
+    #submitFinalBtn {
+      margin-top: 32px;
+      background: linear-gradient(135deg, var(--success-color), #059669);
+      font-size: 18px;
+      padding: 16px 40px;
+      box-shadow: var(--shadow-lg);
     }
-    #submitFinalBtn:active {
-      transform: translateY(0);
-      box-shadow: none;
+
+    #submitFinalBtn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Success Message */
+    .success-message {
+      background: var(--success-color);
+      color: white;
+      padding: 16px;
+      border-radius: 8px;
+      margin-top: 20px;
+      text-align: center;
+      font-weight: 600;
+      animation: slideUp 0.5s ease-out;
+    }
+
+    /* Loading State */
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid var(--primary-light);
+      border-top-color: var(--primary-color);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-right: 8px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+      .login-card {
+        padding: 24px;
+      }
+
+      .questions-card {
+        padding: 20px;
+      }
+
+      .choices-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .team-name {
+        font-size: 24px;
+      }
+    }
+
+    /* Scrollbar Styling */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--secondary-light);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--secondary-color);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--primary-color);
     }
   </style>
 </head>
 <body>
-  <h1>الانضمام للتحكيم</h1>
-  <div id="currentTeam" class="current-team"></div>
-  <input type="text" id="name" placeholder="اسمك">
-  <button onclick="joinGame()">انضمام</button>
+  <div class="main-container">
+    <!-- Login Card -->
+    <div class="login-card" id="loginCard">
+      <h1>الانضمام للتحكيم</h1>
+      <p class="login-subtitle">أدخل اسمك للانضمام إلى جلسة التحكيم</p>
+      
+      <div class="session-info">
+        <span>معرف الجلسة:</span>
+        <span id="sessionId">لم تبدأ</span>
+      </div>
 
-    <div id="question-box" style="display:none;">
-      <div id="questions-container"></div>
-      <button id="submitFinalBtn" style="margin-top: 20px; padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 4px; display: none; cursor: pointer; transition: all 0.2s ease;">
-        إرسال الإجابات النهائية
+      <div class="form-group">
+        <label for="name">اسمك الكامل</label>
+        <input type="text" id="name" placeholder="أدخل اسمك هنا">
+      </div>
+
+      <button class="btn btn-primary" onclick="joinGame()">
+        <span>🚀</span>
+        انضمام للجلسة
       </button>
     </div>
 
-  <div id="sessionInfo">
-    <h3>معرف الجلسة: <span id="sessionId">لم تبدأ</span></h3>
+    <!-- Questions Card -->
+    <div class="questions-card" id="question-box" style="display:none;">
+      <div class="team-header">
+        <h2>يتم تحكيم</h2>
+        <div class="team-name" id="currentTeam">لم يتم اختيار فريق</div>
+      </div>
+
+      <div id="questions-container"></div>
+
+      <button id="submitFinalBtn" class="btn btn-success" style="display: none;">
+        <span>📤</span>
+        إرسال الإجابات النهائية
+      </button>
+    </div>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
@@ -80,8 +443,8 @@
         judgeToken: savedJudgeToken 
       });
       
-      // Hide join form and show question box
-      document.getElementById('name').style.display = 'none';
+      // Hide login and show questions
+      document.getElementById('loginCard').style.display = 'none';
       document.getElementById('question-box').style.display = 'block';
     }
     
@@ -98,6 +461,13 @@
       socket.emit('join-judging', '1234', name);
     }
 
+    // Add enter key support for login
+    document.getElementById('name').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        joinGame();
+      }
+    });
+
     socket.on('joined-success', (data) => {
       const name = typeof data === 'string' ? data : data.name;
       const judgeToken = typeof data === 'object' ? data.judgeToken : null;
@@ -110,16 +480,35 @@
         localStorage.setItem('judgeToken', judgeToken);
       }
       
-      document.getElementById('name').style.display = 'none';
+      // Smooth transition
+      document.getElementById('loginCard').style.display = 'none';
       document.getElementById('question-box').style.display = 'block';
-      alert(`مرحباً ${name} في جلسة التحكيم`);
+      
+      // Show success notification
+      const successMsg = document.createElement('div');
+      successMsg.className = 'success-message';
+      successMsg.textContent = `مرحباً ${name}! تم الانضمام بنجاح`;
+      document.getElementById('question-box').insertBefore(successMsg, document.getElementById('question-box').firstChild);
+      
+      setTimeout(() => {
+        successMsg.remove();
+      }, 3000);
     });
 
     // Handle successful judge rejoin
     socket.on('judge-rejoined', (data) => {
       document.getElementById('sessionId').textContent = data.sessionId;
       console.log('Judge successfully rejoined session:', data.sessionId);
-      alert(`تم إعادة الانضمام للجلسة: ${data.sessionId} كـ ${data.name}`);
+      
+      // Show success notification
+      const successMsg = document.createElement('div');
+      successMsg.className = 'success-message';
+      successMsg.textContent = `تم إعادة الانضمام للجلسة كـ ${data.name}`;
+      document.getElementById('question-box').insertBefore(successMsg, document.getElementById('question-box').firstChild);
+      
+      setTimeout(() => {
+        successMsg.remove();
+      }, 3000);
     });
 
     // Handle rejoin failure
@@ -130,8 +519,8 @@
       localStorage.removeItem('judgeName');
       localStorage.removeItem('judgeToken');
       
-      // Show join form
-      document.getElementById('name').style.display = 'block';
+      // Show login form
+      document.getElementById('loginCard').style.display = 'block';
       document.getElementById('question-box').style.display = 'none';
       alert('انتهت صلاحية الجلسة السابقة. يرجى الانضمام مرة أخرى.');
     });
@@ -144,9 +533,9 @@
       localStorage.removeItem('judgeToken');
       
       // Reset UI state
-      document.getElementById('name').style.display = 'block';
+      document.getElementById('loginCard').style.display = 'block';
       document.getElementById('question-box').style.display = 'none';
-      document.getElementById('currentTeam').textContent = '';
+      document.getElementById('currentTeam').textContent = 'لم يتم اختيار فريق';
       document.getElementById('questions-container').innerHTML = '';
       document.getElementById('submitFinalBtn').style.display = 'none';
       document.getElementById('sessionId').textContent = 'لم تبدأ';
@@ -160,8 +549,7 @@
 
     socket.on('question', (data) => {
       console.log('Received question data:', data);
-      document.getElementById('currentTeam').textContent = 
-        `يتم تحكيم: ${data.currentTeam || 'لم يتم اختيار فريق'}`;
+      document.getElementById('currentTeam').textContent = data.currentTeam || 'لم يتم اختيار فريق';
       
       const questions = Array.isArray(data.questions) ? data.questions : [data.questions];
       const container = document.getElementById('questions-container');
@@ -194,18 +582,36 @@
           teamId: parseInt(teamId),
           answers
         });
+        
+        // Show success message
+        const successMsg = document.createElement('div');
+        successMsg.className = 'success-message';
+        successMsg.textContent = 'تم إرسال الإجابات بنجاح!';
+        document.getElementById('question-box').appendChild(successMsg);
+        
+        setTimeout(() => {
+          successMsg.remove();
+        }, 3000);
       };
 
       questions.forEach((question, index) => {
         const questionDiv = document.createElement('div');
         questionDiv.setAttribute('data-index', question.id);
-        questionDiv.style.marginBottom = '20px';
+        questionDiv.className = 'question-box';
 
-        const questionTitle = document.createElement('h2');
-        questionTitle.innerText = `س${index + 1}: ${question.text}`;
-        questionDiv.appendChild(questionTitle);
+        const questionNumber = document.createElement('div');
+        questionNumber.className = 'question-number';
+        questionNumber.textContent = `السؤال ${index + 1}`;
+        questionDiv.appendChild(questionNumber);
+
+        const questionText = document.createElement('div');
+        questionText.className = 'question-text';
+        questionText.textContent = question.text;
+        questionDiv.appendChild(questionText);
 
         const choicesDiv = document.createElement('div');
+        choicesDiv.className = 'choices-grid';
+        
         question.choices.forEach(choice => {
           const btn = document.createElement('button');
           btn.className = 'answer-btn';
@@ -226,6 +632,7 @@
           };
           choicesDiv.appendChild(btn);
         });
+        
         questionDiv.appendChild(choicesDiv);
         container.appendChild(questionDiv);
       });
