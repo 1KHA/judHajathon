@@ -179,13 +179,15 @@ io = new Server(server, {
 // Socket.IO connection handling
 io.on('connection', handleSocketConnection);
 
-// Start server
-server.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
-});
-
 // Export server instance for Vercel
 module.exports = server;
+
+// Only start server locally, not in Vercel environment
+if (!process.env.VERCEL) {
+  server.listen(PORT, () => {
+    console.log(`Server running at http://localhost:${PORT}`);
+  });
+}
 
 let judgePIN = '1234';
 let players = {};
