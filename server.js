@@ -126,31 +126,11 @@ process.on('uncaughtException', (error) => {
 });
 
 const app = express();
-const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"],
-    credentials: true
-  },
-  path: '/socket.io/',
-  transports: ['polling', 'websocket'], // Support both transports
-  allowEIO3: true, // Allow Engine.IO 3 for better compatibility
-  maxHttpBufferSize: 1e8, // Increase buffer size
-  pingTimeout: 60000, // Increase ping timeout for serverless
-  pingInterval: 25000, // Adjust ping interval
-  connectTimeout: 45000, // Increase connection timeout
-  upgradeTimeout: 30000, // Increase upgrade timeout
-  // Vercel-specific optimizations
-  perMessageDeflate: {
-    threshold: 2048, // Only compress data above this size
-    zlibDeflateOptions: {
-      chunkSize: 1024,
-      memLevel: 7,
-      level: 3
-    }
-  }
-});
+let server;
+let io;
+
+// Export app for Vercel
+module.exports = { app };
 
 const PORT = process.env.PORT || 3000;
 
@@ -165,11 +145,46 @@ app.get('/api/health', (req, res) => {
     dbConnected: isDbConnected,
     environment: process.env.NODE_ENV || 'development',
     memoryUsage: process.memoryUsage(),
-    socketConnections: io.engine.clientsCount
+    socketConnections: 0
   };
   
   res.status(200).json(healthData);
 });
+
+// Initialize Socket.IO for non-Vercel environments
+if (!process.env.VERCEL) {
+  server = http.createServer(app);
+  io = new Server(server, {
+    cors: {
+      origin: "*",
+      methods: ["GET", "POST"],
+      credentials: true
+    },
+    path: '/socket.io/',
+    transports: ['polling', 'websocket'],
+    allowEIO3: true,
+    maxHttpBufferSize: 1e8,
+    pingTimeout: 60000,
+    pingInterval: 25000,
+    connectTimeout: 45000,
+    upgradeTimeout: 30000,
+    perMessageDeflate: {
+      threshold: 2048,
+      zlibDeflateOptions: {
+        chunkSize: 1024,
+        memLevel: 7,
+        level: 3
+      }
+    }
+  });
+
+  // Socket.IO connection handling
+  io.on('connection', handleSocketConnection);
+
+  server.listen(PORT, () => {
+    console.log(`Server running at http://localhost:${PORT}`);
+  });
+}
 
 let judgePIN = '1234';
 let players = {};
@@ -195,7 +210,7 @@ const safeDbOperation = async (operation, fallbackValue = null, errorMessage = '
   }
 };
 
-io.on('connection', (socket) => {
+function handleSocketConnection(socket) {
   console.log('New connection:', socket.id);
   
   // Send connection status to client
@@ -1130,11 +1145,11 @@ io.on('connection', (socket) => {
 
         io.to('host').emit('leaderboard-updated', leaderboard);
         socket.emit('final-answers-submitted');
-    } catch (error) {
-      console.error('Error saving final answers:', error);
-      socket.emit('error-message', 'Failed to save final answers');
-    }
-  });
+      } catch (error) {
+        console.error('Error saving final answers:', error);
+        socket.emit('error-message', 'Failed to save final answers');
+      }
+    });
 
   socket.on('disconnect', () => {
     delete players[socket.id];
@@ -1282,8 +1297,6 @@ io.on('connection', (socket) => {
       console.error('Error saving team result:', error);
     }
   }
-});
+}
 
-server.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
-});
+module.exports = { app };

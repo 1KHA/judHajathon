@@ -5,47 +5,30 @@
       "src": "server.js",
       "use": "@vercel/node",
       "config": {
-        "buildCommand": "npm run vercel-build",
-        "maxDuration": 60
+        "includeFiles": [
+          "prisma/**",
+          "public/**"
+        ]
       }
-    },
-    {
-      "src": "public/**",
-      "use": "@vercel/static"
     }
   ],
   "routes": [
     {
       "src": "/socket.io/(.*)",
-      "dest": "server.js",
-      "headers": {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-        "Access-Control-Allow-Headers": "X-Requested-With, Content-Type, Accept",
-        "Cache-Control": "no-cache, no-store, must-revalidate"
-      }
+      "dest": "/server.js"
     },
     {
       "src": "/api/(.*)",
-      "dest": "server.js"
+      "dest": "/server.js"
     },
     {
-      "src": "/(.*\\.(js|css|png|jpg|jpeg|gif|ico|html))",
+      "src": "/(.+\\.(js|css|png|jpg|jpeg|gif|ico|html))",
       "dest": "/public/$1"
     },
     {
       "src": "/(.*)",
-      "dest": "server.js"
+      "dest": "/server.js"
     }
   ],
-  "env": {
-    "NODE_ENV": "production"
-  },
-  "regions": ["cdg1"],
-  "functions": {
-    "server.js": {
-      "memory": 1024,
-      "maxDuration": 10
-    }
-  }
+  "outputDirectory": "public"
 }
