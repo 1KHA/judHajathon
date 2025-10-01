@@ -7,11 +7,23 @@ const { v4: uuidv4 } = require('uuid');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  },
+  path: '/socket.io/',
+  transports: ['websocket', 'polling']
+});
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 app.use(express.static('public'));
+
+// Health check endpoint for Vercel
+app.get('/api/health', (req, res) => {
+  res.status(200).send('OK');
+});
 
 let judgePIN = '1234';
 let players = {};

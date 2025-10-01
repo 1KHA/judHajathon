@@ -458,8 +458,13 @@
         </div>
     </div>
 
-    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script>
+        const socket = io(window.location.origin, {
+            path: '/socket.io/',
+            transports: ['websocket', 'polling']
+        });
+        
         // Function to calculate total points as the sum of individual answer points
         function calculateTotalPoints(answers) {
             if (!answers || !Array.isArray(answers)) return 0;
@@ -480,8 +485,6 @@
             if (percentage >= 50) return 'score-medium';
             return 'score-low';
         }
-        
-        const socket = io();
         
         // Fetch all session results when page loads
         socket.emit('get-all-results');
