@@ -129,8 +129,8 @@ const app = express();
 let server;
 let io;
 
-// Export app for Vercel
-module.exports = { app };
+// Create server instance
+server = http.createServer(app);
 
 const PORT = process.env.PORT || 3000;
 
@@ -151,40 +151,41 @@ app.get('/api/health', (req, res) => {
   res.status(200).json(healthData);
 });
 
-// Initialize Socket.IO for non-Vercel environments
-if (!process.env.VERCEL) {
-  server = http.createServer(app);
-  io = new Server(server, {
-    cors: {
-      origin: "*",
-      methods: ["GET", "POST"],
-      credentials: true
-    },
-    path: '/socket.io/',
-    transports: ['polling', 'websocket'],
-    allowEIO3: true,
-    maxHttpBufferSize: 1e8,
-    pingTimeout: 60000,
-    pingInterval: 25000,
-    connectTimeout: 45000,
-    upgradeTimeout: 30000,
-    perMessageDeflate: {
-      threshold: 2048,
-      zlibDeflateOptions: {
-        chunkSize: 1024,
-        memLevel: 7,
-        level: 3
-      }
+// Initialize Socket.IO
+io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"],
+    credentials: true
+  },
+  path: '/socket.io/',
+  transports: ['polling', 'websocket'],
+  allowEIO3: true,
+  maxHttpBufferSize: 1e8,
+  pingTimeout: 60000,
+  pingInterval: 25000,
+  connectTimeout: 45000,
+  upgradeTimeout: 30000,
+  perMessageDeflate: {
+    threshold: 2048,
+    zlibDeflateOptions: {
+      chunkSize: 1024,
+      memLevel: 7,
+      level: 3
     }
-  });
+  }
+});
 
-  // Socket.IO connection handling
-  io.on('connection', handleSocketConnection);
+// Socket.IO connection handling
+io.on('connection', handleSocketConnection);
 
-  server.listen(PORT, () => {
-    console.log(`Server running at http://localhost:${PORT}`);
-  });
-}
+// Start server
+server.listen(PORT, () => {
+  console.log(`Server running at http://localhost:${PORT}`);
+});
+
+// Export server instance for Vercel
+module.exports = server;
 
 let judgePIN = '1234';
 let players = {};
@@ -1298,5 +1299,3 @@ function handleSocketConnection(socket) {
     }
   }
 }
-
-module.exports = { app };
