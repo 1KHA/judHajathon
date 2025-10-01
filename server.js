@@ -23,10 +23,15 @@ const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
     origin: "*",
-    methods: ["GET", "POST"]
+    methods: ["GET", "POST"],
+    credentials: true
   },
   path: '/socket.io/',
-  transports: ['websocket', 'polling']
+  transports: ['polling', 'websocket'], // Prioritize polling for Vercel
+  allowEIO3: true, // Allow Engine.IO 3 for better compatibility
+  maxHttpBufferSize: 1e8, // Increase buffer size
+  pingTimeout: 60000, // Increase ping timeout for serverless
+  pingInterval: 25000 // Adjust ping interval
 });
 
 const PORT = process.env.PORT || 3000;

@@ -622,7 +622,11 @@
   <script>
     const socket = io(window.location.origin, {
       path: '/socket.io/',
-      transports: ['websocket', 'polling']
+      transports: ['polling', 'websocket'], // Prioritize polling for Vercel
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      timeout: 20000,
+      forceNew: true
     });
     let teams = [];
     let currentTeam = 'لا يوجد';
