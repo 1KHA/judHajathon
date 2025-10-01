@@ -210,6 +210,8 @@ io.on('connection', (socket) => {
       distinct: ['name'],
       select: { name: true }
     });
+    console.log('Fetched teams from database:', teams);
+    
     const questions = await prisma.question.findMany({
       distinct: ['text'],
       select: { id: true, text: true, section: true, weight: true }
@@ -221,12 +223,16 @@ io.on('connection', (socket) => {
         }
       }
     });
-    socket.emit('init-host-data', { 
+    
+    const initData = { 
       teams: teams.map(t => t.name),
       questions,
       questionBanks,
       sections: [...new Set(questions.map(q => q.section))]
-    });
+    };
+    
+    console.log('Sending init-host-data:', initData);
+    socket.emit('init-host-data', initData);
   });
 
   // Host rejoin functionality

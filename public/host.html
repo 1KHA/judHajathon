@@ -802,12 +802,14 @@
       // Populate teams dropdown
       const teamSelect = document.getElementById('teamSelect');
       teamSelect.innerHTML = '';
+      console.log('Populating teams:', data.teams);
       data.teams.forEach(team => {
         const option = document.createElement('option');
         option.value = team;
         option.textContent = team;
         teamSelect.appendChild(option);
       });
+      console.log('Teams populated in dropdown');
 
       // Populate question banks dropdown
       const bankSelect = document.getElementById('bankSelect');
