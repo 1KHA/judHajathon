@@ -2,8 +2,21 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
 const { v4: uuidv4 } = require('uuid');
+
+// Initialize Prisma with error handling
+let prisma;
+try {
+  prisma = new PrismaClient();
+  console.log('Prisma client initialized successfully');
+} catch (error) {
+  console.error('Failed to initialize Prisma client:', error);
+  // Create a mock Prisma client for development if needed
+  prisma = {
+    $connect: () => Promise.resolve(),
+    $disconnect: () => Promise.resolve()
+  };
+}
 
 const app = express();
 const server = http.createServer(app);
