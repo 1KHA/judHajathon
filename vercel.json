@@ -5,7 +5,8 @@
       "src": "server.js",
       "use": "@vercel/node",
       "config": {
-        "buildCommand": "npm run vercel-build"
+        "buildCommand": "npm run vercel-build",
+        "maxDuration": 60
       }
     },
     {
@@ -16,7 +17,13 @@
   "routes": [
     {
       "src": "/socket.io/(.*)",
-      "dest": "server.js"
+      "dest": "server.js",
+      "headers": {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+        "Access-Control-Allow-Headers": "X-Requested-With, Content-Type, Accept",
+        "Cache-Control": "no-cache, no-store, must-revalidate"
+      }
     },
     {
       "src": "/api/(.*)",
@@ -30,5 +37,15 @@
       "src": "/(.*)",
       "dest": "server.js"
     }
-  ]
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  },
+  "regions": ["cdg1"],
+  "functions": {
+    "server.js": {
+      "memory": 1024,
+      "maxDuration": 10
+    }
+  }
 }

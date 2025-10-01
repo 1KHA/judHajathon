@@ -4,19 +4,126 @@ const { Server } = require('socket.io');
 const { PrismaClient } = require('@prisma/client');
 const { v4: uuidv4 } = require('uuid');
 
-// Initialize Prisma with error handling
+// Initialize Prisma with enhanced error handling
 let prisma;
-try {
-  prisma = new PrismaClient();
-  console.log('Prisma client initialized successfully');
-} catch (error) {
-  console.error('Failed to initialize Prisma client:', error);
-  // Create a mock Prisma client for development if needed
-  prisma = {
+let isDbConnected = false;
+const MAX_RECONNECT_ATTEMPTS = 5;
+let reconnectAttempts = 0;
+
+// Create a more robust mock client for when database is unavailable
+const createMockPrismaClient = () => {
+  console.log('Using mock Prisma client for fallback operation');
+  return {
     $connect: () => Promise.resolve(),
-    $disconnect: () => Promise.resolve()
+    $disconnect: () => Promise.resolve(),
+    team: {
+      findMany: () => Promise.resolve([]),
+      findFirst: () => Promise.resolve(null),
+      upsert: (data) => Promise.resolve({...data.create, id: Math.floor(Math.random() * 1000)}),
+    },
+    judge: {
+      findMany: () => Promise.resolve([]),
+      findFirst: () => Promise.resolve(null),
+      findUnique: () => Promise.resolve(null),
+      upsert: (data) => Promise.resolve({...data.create, id: Math.floor(Math.random() * 1000)}),
+      updateMany: () => Promise.resolve({count: 0}),
+    },
+    session: {
+      findMany: () => Promise.resolve([]),
+      findFirst: () => Promise.resolve(null),
+      findUnique: () => Promise.resolve(null),
+      create: (data) => Promise.resolve({...data.data, id: Math.floor(Math.random() * 1000)}),
+      update: () => Promise.resolve({}),
+    },
+    sessionTeam: {
+      create: () => Promise.resolve({}),
+      findFirst: () => Promise.resolve(null),
+    },
+    sessionQuestion: {
+      findMany: () => Promise.resolve([]),
+      findFirst: () => Promise.resolve(null),
+      create: () => Promise.resolve({}),
+    },
+    question: {
+      findMany: () => Promise.resolve([]),
+      findFirst: () => Promise.resolve(null),
+      create: () => Promise.resolve({}),
+    },
+    questionBank: {
+      findMany: () => Promise.resolve([]),
+      upsert: (data) => Promise.resolve({...data.create, id: Math.floor(Math.random() * 1000)}),
+    },
+    answer: {
+      findMany: () => Promise.resolve([]),
+      create: () => Promise.resolve({}),
+    },
+    finalAnswer: {
+      findMany: () => Promise.resolve([]),
+      upsert: () => Promise.resolve({}),
+    },
+    sessionResult: {
+      findMany: () => Promise.resolve([]),
+      upsert: () => Promise.resolve({}),
+    },
+    $transaction: (operations) => Promise.all(operations).then(results => results),
   };
-}
+};
+
+// Initialize Prisma with retry mechanism
+const initPrisma = async () => {
+  try {
+    prisma = new PrismaClient({
+      errorFormat: 'minimal',
+      log: ['error', 'warn'],
+    });
+    
+    // Test the connection
+    await prisma.$connect();
+    console.log('Prisma client initialized and connected successfully');
+    isDbConnected = true;
+    reconnectAttempts = 0;
+    return true;
+  } catch (error) {
+    console.error(`Failed to initialize Prisma client (attempt ${reconnectAttempts + 1}/${MAX_RECONNECT_ATTEMPTS}):`, error);
+    
+    if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+      reconnectAttempts++;
+      console.log(`Retrying database connection in 5 seconds...`);
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      return initPrisma();
+    } else {
+      console.warn('Max reconnection attempts reached. Using mock Prisma client for fallback operation.');
+      prisma = createMockPrismaClient();
+      return false;
+    }
+  }
+};
+
+// Initialize Prisma on startup
+initPrisma().catch(error => {
+  console.error('Fatal error during Prisma initialization:', error);
+  prisma = createMockPrismaClient();
+});
+
+// Periodically check database connection
+setInterval(async () => {
+  if (!isDbConnected && reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+    console.log('Attempting to reconnect to database...');
+    reconnectAttempts = 0;
+    await initPrisma();
+  }
+}, 60000); // Check every minute
+
+// Setup global error handlers
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  // Don't crash the server, just log the error
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  // Don't crash the server, just log the error
+});
 
 const app = express();
 const server = http.createServer(app);
@@ -27,20 +134,41 @@ const io = new Server(server, {
     credentials: true
   },
   path: '/socket.io/',
-  transports: ['polling', 'websocket'], // Prioritize polling for Vercel
+  transports: ['polling', 'websocket'], // Support both transports
   allowEIO3: true, // Allow Engine.IO 3 for better compatibility
   maxHttpBufferSize: 1e8, // Increase buffer size
   pingTimeout: 60000, // Increase ping timeout for serverless
-  pingInterval: 25000 // Adjust ping interval
+  pingInterval: 25000, // Adjust ping interval
+  connectTimeout: 45000, // Increase connection timeout
+  upgradeTimeout: 30000, // Increase upgrade timeout
+  // Vercel-specific optimizations
+  perMessageDeflate: {
+    threshold: 2048, // Only compress data above this size
+    zlibDeflateOptions: {
+      chunkSize: 1024,
+      memLevel: 7,
+      level: 3
+    }
+  }
 });
 
 const PORT = process.env.PORT || 3000;
 
 app.use(express.static('public'));
 
-// Health check endpoint for Vercel
+// Enhanced health check endpoint for Vercel
 app.get('/api/health', (req, res) => {
-  res.status(200).send('OK');
+  const healthData = {
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    dbConnected: isDbConnected,
+    environment: process.env.NODE_ENV || 'development',
+    memoryUsage: process.memoryUsage(),
+    socketConnections: io.engine.clientsCount
+  };
+  
+  res.status(200).json(healthData);
 });
 
 let judgePIN = '1234';
@@ -51,8 +179,50 @@ let answersByTeam = {};
 let currentSession = null;
 let sessions = new Map(); // Track multiple sessions by sessionId
 
+// Helper function for safe database operations
+const safeDbOperation = async (operation, fallbackValue = null, errorMessage = 'Database operation failed') => {
+  if (!isDbConnected && reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+    // Try to reconnect to the database if we're using the mock client
+    reconnectAttempts = 0;
+    await initPrisma();
+  }
+  
+  try {
+    return await operation();
+  } catch (error) {
+    console.error(`${errorMessage}:`, error);
+    return fallbackValue;
+  }
+};
+
 io.on('connection', (socket) => {
   console.log('New connection:', socket.id);
+  
+  // Send connection status to client
+  socket.emit('connection-status', { 
+    connected: true, 
+    dbConnected: isDbConnected,
+    serverTime: new Date().toISOString()
+  });
+  
+  // Health check event handler
+  socket.on('api/health', () => {
+    socket.emit('health-check', {
+      status: 'OK',
+      serverTime: new Date().toISOString(),
+      uptime: process.uptime(),
+      dbConnected: isDbConnected,
+      environment: process.env.NODE_ENV || 'development',
+      connections: io.engine.clientsCount
+    });
+  });
+  
+  // Ping handler for latency measurement
+  socket.on('ping', (callback) => {
+    if (typeof callback === 'function') {
+      callback();
+    }
+  });
 
   socket.on('join-judging', async (pin, name) => {
     if (!name || name.trim() === '') {
@@ -235,34 +405,53 @@ io.on('connection', (socket) => {
 
   socket.on('join-host', async () => {
     socket.join('host');
-    // Send existing teams, questions and question banks to host
-    const teams = await prisma.team.findMany({
-      distinct: ['name'],
-      select: { name: true }
-    });
-    console.log('Fetched teams from database:', teams);
     
-    const questions = await prisma.question.findMany({
-      distinct: ['text'],
-      select: { id: true, text: true, section: true, weight: true }
-    });
-    const questionBanks = await prisma.questionBank.findMany({
-      include: {
-        questions: {
+    try {
+      // Send existing teams, questions and question banks to host
+      const teams = await safeDbOperation(
+        () => prisma.team.findMany({
+          distinct: ['name'],
+          select: { name: true }
+        }),
+        [],
+        'Failed to fetch teams'
+      );
+      console.log('Fetched teams from database:', teams);
+      
+      const questions = await safeDbOperation(
+        () => prisma.question.findMany({
+          distinct: ['text'],
           select: { id: true, text: true, section: true, weight: true }
-        }
-      }
-    });
-    
-    const initData = { 
-      teams: teams.map(t => t.name),
-      questions,
-      questionBanks,
-      sections: [...new Set(questions.map(q => q.section))]
-    };
-    
-    console.log('Sending init-host-data:', initData);
-    socket.emit('init-host-data', initData);
+        }),
+        [],
+        'Failed to fetch questions'
+      );
+      
+      const questionBanks = await safeDbOperation(
+        () => prisma.questionBank.findMany({
+          include: {
+            questions: {
+              select: { id: true, text: true, section: true, weight: true }
+            }
+          }
+        }),
+        [],
+        'Failed to fetch question banks'
+      );
+      
+      const initData = { 
+        teams: teams.map(t => t.name),
+        questions,
+        questionBanks,
+        sections: [...new Set(questions.map(q => q.section || ''))]
+      };
+      
+      console.log('Sending init-host-data:', initData);
+      socket.emit('init-host-data', initData);
+    } catch (error) {
+      console.error('Error in join-host:', error);
+      socket.emit('error-message', 'Failed to load host data. Please try again.');
+    }
   });
 
   // Host rejoin functionality

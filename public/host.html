@@ -620,13 +620,128 @@
 
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <script>
+    // Connection status element
+    const createStatusIndicator = () => {
+      const statusDiv = document.createElement('div');
+      statusDiv.id = 'connection-status';
+      statusDiv.style.position = 'fixed';
+      statusDiv.style.bottom = '10px';
+      statusDiv.style.left = '10px';
+      statusDiv.style.padding = '8px 12px';
+      statusDiv.style.borderRadius = '4px';
+      statusDiv.style.fontSize = '12px';
+      statusDiv.style.fontWeight = 'bold';
+      statusDiv.style.zIndex = '1000';
+      statusDiv.style.display = 'flex';
+      statusDiv.style.alignItems = 'center';
+      statusDiv.style.gap = '8px';
+      statusDiv.style.backgroundColor = '#f1f5f9';
+      statusDiv.style.color = '#64748b';
+      statusDiv.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+      statusDiv.innerHTML = '<span>⚪</span> جاري الاتصال...';
+      document.body.appendChild(statusDiv);
+      return statusDiv;
+    };
+    
+    const statusIndicator = createStatusIndicator();
+    
+    // Enhanced Socket.IO configuration
     const socket = io(window.location.origin, {
       path: '/socket.io/',
-      transports: ['polling', 'websocket'], // Prioritize polling for Vercel
-      reconnectionAttempts: 5,
+      transports: ['polling', 'websocket'],
+      reconnectionAttempts: 10,
       reconnectionDelay: 1000,
-      timeout: 20000,
-      forceNew: true
+      reconnectionDelayMax: 5000,
+      timeout: 30000,
+      forceNew: true,
+      autoConnect: true
+    });
+    
+    // Connection event handlers
+    socket.on('connect', () => {
+      console.log('Connected to server with ID:', socket.id);
+      statusIndicator.innerHTML = '<span style="color: #10b981;">●</span> متصل';
+      statusIndicator.style.backgroundColor = '#ecfdf5';
+      statusIndicator.style.color = '#065f46';
+      
+      // Hide status indicator after 5 seconds
+      setTimeout(() => {
+        statusIndicator.style.opacity = '0.7';
+        statusIndicator.style.transform = 'translateY(10px)';
+        statusIndicator.style.transition = 'opacity 0.5s, transform 0.5s';
+      }, 5000);
+    });
+    
+    socket.on('disconnect', (reason) => {
+      console.log('Disconnected from server:', reason);
+      statusIndicator.innerHTML = '<span style="color: #ef4444;">●</span> غير متصل';
+      statusIndicator.style.backgroundColor = '#fef2f2';
+      statusIndicator.style.color = '#b91c1c';
+      statusIndicator.style.opacity = '1';
+      statusIndicator.style.transform = 'translateY(0)';
+      statusIndicator.style.transition = 'none';
+    });
+    
+    socket.on('reconnecting', (attemptNumber) => {
+      console.log(`Attempting to reconnect: ${attemptNumber}`);
+      statusIndicator.innerHTML = `<span style="color: #f59e0b;">●</span> محاولة إعادة الاتصال (${attemptNumber})`;
+      statusIndicator.style.backgroundColor = '#fffbeb';
+      statusIndicator.style.color = '#92400e';
+      statusIndicator.style.opacity = '1';
+      statusIndicator.style.transform = 'translateY(0)';
+      statusIndicator.style.transition = 'none';
+    });
+    
+    socket.on('reconnect_failed', () => {
+      console.log('Failed to reconnect');
+      statusIndicator.innerHTML = '<span style="color: #ef4444;">●</span> فشل الاتصال';
+      statusIndicator.style.backgroundColor = '#fef2f2';
+      statusIndicator.style.color = '#b91c1c';
+      
+      // Show reconnect button
+      const reconnectBtn = document.createElement('button');
+      reconnectBtn.textContent = 'إعادة الاتصال';
+      reconnectBtn.style.marginLeft = '8px';
+      reconnectBtn.style.padding = '4px 8px';
+      reconnectBtn.style.borderRadius = '4px';
+      reconnectBtn.style.border = 'none';
+      reconnectBtn.style.backgroundColor = '#ef4444';
+      reconnectBtn.style.color = 'white';
+      reconnectBtn.style.cursor = 'pointer';
+      reconnectBtn.onclick = () => {
+        socket.connect();
+        statusIndicator.removeChild(reconnectBtn);
+      };
+      statusIndicator.appendChild(reconnectBtn);
+    });
+    
+    // New event for database connection status
+    socket.on('connection-status', (status) => {
+      console.log('Connection status:', status);
+      if (!status.dbConnected) {
+        // Show database connection warning
+        const dbWarning = document.createElement('div');
+        dbWarning.style.backgroundColor = '#fffbeb';
+        dbWarning.style.color = '#92400e';
+        dbWarning.style.padding = '12px';
+        dbWarning.style.borderRadius = '8px';
+        dbWarning.style.margin = '12px 0';
+        dbWarning.style.textAlign = 'center';
+        dbWarning.style.fontWeight = 'bold';
+        dbWarning.innerHTML = '⚠️ تعذر الاتصال بقاعدة البيانات. بعض الوظائف قد لا تعمل بشكل صحيح.';
+        
+        // Insert at the top of the container
+        const container = document.querySelector('.container');
+        container.insertBefore(dbWarning, container.firstChild);
+      }
+    });
+    
+    // Error handling
+    socket.on('connect_error', (error) => {
+      console.error('Connection error:', error);
+      statusIndicator.innerHTML = '<span style="color: #ef4444;">●</span> خطأ في الاتصال';
+      statusIndicator.style.backgroundColor = '#fef2f2';
+      statusIndicator.style.color = '#b91c1c';
     });
     let teams = [];
     let currentTeam = 'لا يوجد';
@@ -711,7 +826,55 @@
     });
 
     socket.on('error-message', (message) => {
-      alert(message);
+      // Create a more user-friendly error notification
+      const errorNotification = document.createElement('div');
+      errorNotification.style.position = 'fixed';
+      errorNotification.style.top = '20px';
+      errorNotification.style.right = '20px';
+      errorNotification.style.backgroundColor = '#fef2f2';
+      errorNotification.style.color = '#b91c1c';
+      errorNotification.style.padding = '16px';
+      errorNotification.style.borderRadius = '8px';
+      errorNotification.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
+      errorNotification.style.zIndex = '1001';
+      errorNotification.style.maxWidth = '400px';
+      errorNotification.style.animation = 'slideIn 0.3s ease-out';
+      
+      // Add close button
+      const closeBtn = document.createElement('span');
+      closeBtn.innerHTML = '&times;';
+      closeBtn.style.position = 'absolute';
+      closeBtn.style.top = '8px';
+      closeBtn.style.right = '12px';
+      closeBtn.style.cursor = 'pointer';
+      closeBtn.style.fontSize = '20px';
+      closeBtn.onclick = () => document.body.removeChild(errorNotification);
+      
+      // Add error icon and message
+      errorNotification.innerHTML = `<div style="display: flex; align-items: center; gap: 12px;">
+        <div style="font-size: 24px;">⚠️</div>
+        <div>${message}</div>
+      </div>`;
+      
+      errorNotification.appendChild(closeBtn);
+      document.body.appendChild(errorNotification);
+      
+      // Auto-remove after 5 seconds
+      setTimeout(() => {
+        if (document.body.contains(errorNotification)) {
+          document.body.removeChild(errorNotification);
+        }
+      }, 5000);
+      
+      // Add animation keyframes
+      const style = document.createElement('style');
+      style.innerHTML = `
+        @keyframes slideIn {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+      `;
+      document.head.appendChild(style);
     });
 
     // Enable start session button when ready

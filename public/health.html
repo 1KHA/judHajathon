@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>System Health Check</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, system-ui, -apple-system, sans-serif;
+      background: #f5f7fa;
+      color: #1e293b;
+      line-height: 1.6;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      padding: 24px;
+    }
+    
+    h1 {
+      color: #2563eb;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 2px solid #e2e8f0;
+    }
+    
+    .status-card {
+      background: #f1f5f9;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    
+    .status-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    
+    .status-item:last-child {
+      border-bottom: none;
+    }
+    
+    .status-label {
+      font-weight: 600;
+    }
+    
+    .status-value {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .status-indicator {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    
+    .status-good {
+      background-color: #10b981;
+    }
+    
+    .status-warning {
+      background-color: #f59e0b;
+    }
+    
+    .status-error {
+      background-color: #ef4444;
+    }
+    
+    .status-unknown {
+      background-color: #64748b;
+    }
+    
+    .details {
+      margin-top: 24px;
+    }
+    
+    .details h2 {
+      color: #64748b;
+      font-size: 18px;
+      margin-bottom: 16px;
+    }
+    
+    .details-card {
+      background: #f8fafc;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    
+    .details-item {
+      margin-bottom: 8px;
+    }
+    
+    .details-label {
+      font-weight: 600;
+      color: #64748b;
+      margin-bottom: 4px;
+    }
+    
+    .details-value {
+      font-family: monospace;
+      background: #f1f5f9;
+      padding: 8px;
+      border-radius: 4px;
+      overflow-x: auto;
+    }
+    
+    .refresh-btn {
+      background: #2563eb;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 600;
+      margin-top: 16px;
+    }
+    
+    .refresh-btn:hover {
+      background: #1d4ed8;
+    }
+    
+    .timestamp {
+      color: #64748b;
+      font-size: 14px;
+      margin-top: 8px;
+      text-align: right;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>System Health Check</h1>
+    
+    <div class="status-card">
+      <div class="status-item">
+        <div class="status-label">Socket.IO Connection</div>
+        <div class="status-value" id="socket-status">
+          <span class="status-indicator status-unknown"></span>
+          <span>Checking...</span>
+        </div>
+      </div>
+      
+      <div class="status-item">
+        <div class="status-label">Database Connection</div>
+        <div class="status-value" id="db-status">
+          <span class="status-indicator status-unknown"></span>
+          <span>Checking...</span>
+        </div>
+      </div>
+      
+      <div class="status-item">
+        <div class="status-label">Server Response</div>
+        <div class="status-value" id="server-status">
+          <span class="status-indicator status-unknown"></span>
+          <span>Checking...</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="details">
+      <h2>Connection Details</h2>
+      
+      <div class="details-card">
+        <div class="details-item">
+          <div class="details-label">Socket.IO Transport</div>
+          <div class="details-value" id="socket-transport">Not connected</div>
+        </div>
+        
+        <div class="details-item">
+          <div class="details-label">Socket.IO ID</div>
+          <div class="details-value" id="socket-id">Not connected</div>
+        </div>
+        
+        <div class="details-item">
+          <div class="details-label">Ping</div>
+          <div class="details-value" id="ping">Not available</div>
+        </div>
+      </div>
+      
+      <h2>Server Information</h2>
+      
+      <div class="details-card">
+        <div class="details-item">
+          <div class="details-label">Server Time</div>
+          <div class="details-value" id="server-time">Not available</div>
+        </div>
+        
+        <div class="details-item">
+          <div class="details-label">Client Time</div>
+          <div class="details-value" id="client-time">Not available</div>
+        </div>
+        
+        <div class="details-item">
+          <div class="details-label">Time Difference</div>
+          <div class="details-value" id="time-diff">Not available</div>
+        </div>
+      </div>
+    </div>
+    
+    <button class="refresh-btn" onclick="checkHealth()">Refresh Status</button>
+    
+    <div class="timestamp" id="timestamp"></div>
+  </div>
+  
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <script>
+    // Update timestamp
+    function updateTimestamp() {
+      const now = new Date();
+      document.getElementById('timestamp').textContent = `Last updated: ${now.toLocaleString()}`;
+      document.getElementById('client-time').textContent = now.toISOString();
+    }
+    
+    // Check health status
+    function checkHealth() {
+      updateTimestamp();
+      
+      // Reset status indicators
+      document.getElementById('socket-status').innerHTML = '<span class="status-indicator status-unknown"></span><span>Checking...</span>';
+      document.getElementById('db-status').innerHTML = '<span class="status-indicator status-unknown"></span><span>Checking...</span>';
+      document.getElementById('server-status').innerHTML = '<span class="status-indicator status-unknown"></span><span>Checking...</span>';
+      
+      // Initialize Socket.IO
+      const socket = io(window.location.origin, {
+        path: '/socket.io/',
+        transports: ['polling', 'websocket'],
+        reconnectionAttempts: 3,
+        reconnectionDelay: 1000,
+        timeout: 5000,
+        forceNew: true
+      });
+      
+      // Set timeout for connection
+      const connectionTimeout = setTimeout(() => {
+        document.getElementById('socket-status').innerHTML = '<span class="status-indicator status-error"></span><span>Connection timeout</span>';
+        document.getElementById('server-status').innerHTML = '<span class="status-indicator status-error"></span><span>No response</span>';
+      }, 5000);
+      
+      // Connection events
+      socket.on('connect', () => {
+        clearTimeout(connectionTimeout);
+        document.getElementById('socket-status').innerHTML = '<span class="status-indicator status-good"></span><span>Connected</span>';
+        document.getElementById('socket-transport').textContent = socket.io.engine.transport.name;
+        document.getElementById('socket-id').textContent = socket.id;
+        
+        // Request ping
+        const startTime = Date.now();
+        socket.emit('ping', () => {
+          const latency = Date.now() - startTime;
+          document.getElementById('ping').textContent = `${latency}ms`;
+        });
+        
+        // Request server status
+        socket.emit('api/health');
+      });
+      
+      socket.on('connect_error', (error) => {
+        clearTimeout(connectionTimeout);
+        document.getElementById('socket-status').innerHTML = `<span class="status-indicator status-error"></span><span>Error: ${error.message}</span>`;
+        document.getElementById('socket-transport').textContent = 'Connection failed';
+        document.getElementById('socket-id').textContent = 'Connection failed';
+      });
+      
+      socket.on('disconnect', (reason) => {
+        document.getElementById('socket-status').innerHTML = `<span class="status-indicator status-warning"></span><span>Disconnected: ${reason}</span>`;
+      });
+      
+      // Server health response
+      socket.on('health-check', (data) => {
+        document.getElementById('server-status').innerHTML = '<span class="status-indicator status-good"></span><span>Responding</span>';
+        document.getElementById('server-time').textContent = data.serverTime;
+        
+        // Calculate time difference
+        const serverTime = new Date(data.serverTime).getTime();
+        const clientTime = new Date().getTime();
+        const diff = Math.abs(clientTime - serverTime);
+        document.getElementById('time-diff').textContent = `${diff}ms`;
+        
+        // Database status
+        if (data.dbConnected) {
+          document.getElementById('db-status').innerHTML = '<span class="status-indicator status-good"></span><span>Connected</span>';
+        } else {
+          document.getElementById('db-status').innerHTML = '<span class="status-indicator status-error"></span><span>Disconnected</span>';
+        }
+      });
+    }
+    
+    // Initial check
+    window.onload = checkHealth;
+  </script>
+</body>
+</html>
