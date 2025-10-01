@@ -4,7 +4,11 @@
   "main": "index.js",
   "scripts": {
     "seed:teams": "node seed-teams.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js",
+    "build": "prisma generate",
+    "postinstall": "prisma generate",
+    "vercel-build": "prisma generate && prisma migrate deploy"
   },
   "keywords": [],
   "author": "",
